@@ -165,8 +165,13 @@ fun ResultScreen(
             val aiLabel = prefs.getString("ai_prediction_label", "") ?: ""
 
             // Redirect to underage results screen
-            navController.navigate("underage_results?score=$score&aiPrediction=$aiLabel") {
-                popUpTo("result/{score}") { inclusive = true }
+            try {
+                val encodedLabel = java.net.URLEncoder.encode(aiLabel, "UTF-8")
+                navController.navigate("underage_results?score=$score&aiPrediction=$encodedLabel") {
+                    popUpTo(navController.currentDestination?.route ?: "result/{score}") { inclusive = true }
+                }
+            } catch (e: Exception) {
+                Log.e("RESULT_SCREEN", "Navigation to underage_results failed: ${e.message}")
             }
         }
     }

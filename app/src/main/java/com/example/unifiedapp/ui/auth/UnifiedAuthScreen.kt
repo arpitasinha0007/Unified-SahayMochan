@@ -1,0 +1,794 @@
+package com.example.unifiedapp.ui.auth
+
+import android.content.Context
+import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+
+// Color scheme
+val AuthPurplePrimary = Color(0xFF8B5CF6)
+val AuthPurpleSecondary = Color(0xFFA78BFA)
+val AuthPurpleDark = Color(0xFF7C3AED)
+val AuthSageGreen = Color(0xFF6B9071)
+val AuthSageLight = Color(0xFFF1F7F3)
+val AuthTextPrimary = Color(0xFF1F2937)
+val AuthTextSecondary = Color(0xFF6B7280)
+val AuthErrorRed = Color(0xFFEF4444)
+val AuthSuccessGreen = Color(0xFF10B981)
+
+data class UserProfile(
+    val name: String,
+    val email: String,
+    val registrationId: String,
+    val age: Int,
+    val gender: String,
+    val isLoggedIn: Boolean = true,
+    val anonymousId: String = ""
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun UnifiedAuthScreen(
+    navController: NavController,
+    onLoginSuccess: (UserProfile) -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    var isLoginMode by remember { mutableStateOf(true) }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Login fields
+    var loginRegId by remember { mutableStateOf("") }
+    var loginPassword by remember { mutableStateOf("") }
+    var loginPasswordVisible by remember { mutableStateOf(false) }
+
+    // Signup fields
+    var signupRegId by remember { mutableStateOf("") }
+    var signupName by remember { mutableStateOf("") }
+    var signupEmail by remember { mutableStateOf("") }
+    var signupAge by remember { mutableStateOf("") }
+    var signupGender by remember { mutableStateOf("") }
+    var signupPassword by remember { mutableStateOf("") }
+    var signupConfirmPassword by remember { mutableStateOf("") }
+    var signupPasswordVisible by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(Color(0xFFF5F3FF), Color(0xFFF1F7F3))
+                )
+            )
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Logo and Title
+            Spacer(modifier = Modifier.height(40.dp))
+
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(AuthPurplePrimary, AuthSageGreen)
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Favorite,
+                    contentDescription = "Logo",
+                    tint = Color.White,
+                    modifier = Modifier.size(40.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Text(
+                text = "Sahay Mochan",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = AuthTextPrimary
+            )
+
+            Text(
+                text = if (isLoginMode) "Welcome back!" else "Create new account",
+                fontSize = 14.sp,
+                color = AuthTextSecondary,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // Error Message
+            if (errorMessage != null) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = AuthErrorRed.copy(alpha = 0.1f)
+                    ),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Error,
+                            contentDescription = null,
+                            tint = AuthErrorRed,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            errorMessage!!,
+                            fontSize = 13.sp,
+                            color = AuthErrorRed,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(
+                            onClick = { errorMessage = null },
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Dismiss",
+                                tint = AuthErrorRed,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // Login Form
+            if (isLoginMode) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(4.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(24.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Text(
+                            "Login to continue",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = AuthTextPrimary
+                        )
+
+                        // Registration ID Field
+                        OutlinedTextField(
+                            value = loginRegId,
+                            onValueChange = { loginRegId = it },
+                            label = { Text("Registration ID / Roll Number") },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Badge,
+                                    contentDescription = null,
+                                    tint = AuthPurplePrimary
+                                )
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AuthPurplePrimary,
+                                unfocusedBorderColor = AuthTextSecondary.copy(alpha = 0.3f)
+                            )
+                        )
+
+                        // Password Field
+                        OutlinedTextField(
+                            value = loginPassword,
+                            onValueChange = { loginPassword = it },
+                            label = { Text("Password") },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Lock,
+                                    contentDescription = null,
+                                    tint = AuthPurplePrimary
+                                )
+                            },
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = { loginPasswordVisible = !loginPasswordVisible }
+                                ) {
+                                    Icon(
+                                        if (loginPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = if (loginPasswordVisible) "Hide password" else "Show password"
+                                    )
+                                }
+                            },
+                            visualTransformation = if (loginPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AuthPurplePrimary,
+                                unfocusedBorderColor = AuthTextSecondary.copy(alpha = 0.3f)
+                            )
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Login Button
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    isLoading = true
+                                    errorMessage = null
+
+                                    val result = performLogin(
+                                        context = context,
+                                        registrationId = loginRegId,
+                                        password = loginPassword
+                                    )
+
+                                    isLoading = false
+
+                                    if (result.first != null) {
+                                        onLoginSuccess(result.first!!)
+                                    } else {
+                                        errorMessage = result.second ?: "Login failed"
+                                    }
+                                }
+                            },
+                            enabled = loginRegId.isNotBlank() && loginPassword.isNotBlank() && !isLoading,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.Transparent
+                            ),
+                            contentPadding = PaddingValues()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.linearGradient(
+                                            colors = listOf(AuthPurplePrimary, AuthPurpleSecondary)
+                                        ),
+                                        RoundedCornerShape(14.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = Color.White,
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Text(
+                                        "Login",
+                                        color = Color.White,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 16.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // Signup Form
+            else {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(4.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(24.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            "Create your account",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = AuthTextPrimary
+                        )
+
+                        // Registration ID
+                        OutlinedTextField(
+                            value = signupRegId,
+                            onValueChange = { signupRegId = it },
+                            label = { Text("Registration ID / Roll Number *") },
+                            leadingIcon = { Icon(Icons.Default.Badge, null, tint = AuthPurplePrimary) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            isError = signupRegId.isNotBlank() && signupRegId.length < 3,
+                            supportingText = {
+                                if (signupRegId.isNotBlank() && signupRegId.length < 3) {
+                                    Text("Registration ID must be at least 3 characters")
+                                }
+                            }
+                        )
+
+                        // Full Name
+                        OutlinedTextField(
+                            value = signupName,
+                            onValueChange = { signupName = it },
+                            label = { Text("Full Name *") },
+                            leadingIcon = { Icon(Icons.Default.Person, null, tint = AuthPurplePrimary) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        // Email
+                        OutlinedTextField(
+                            value = signupEmail,
+                            onValueChange = { signupEmail = it },
+                            label = { Text("Email *") },
+                            leadingIcon = { Icon(Icons.Default.Email, null, tint = AuthPurplePrimary) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                        )
+
+                        // Age
+                        OutlinedTextField(
+                            value = signupAge,
+                            onValueChange = { signupAge = it },
+                            label = { Text("Age *") },
+                            leadingIcon = { Icon(Icons.Default.Cake, null, tint = AuthPurplePrimary) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                        )
+
+                        // Gender Dropdown
+                        var expanded by remember { mutableStateOf(false) }
+                        val genders = listOf("Male", "Female", "Other", "Prefer not to say")
+
+                        ExposedDropdownMenuBox(
+                            expanded = expanded,
+                            onExpandedChange = { expanded = it }
+                        ) {
+                            OutlinedTextField(
+                                value = signupGender,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Gender *") },
+                                leadingIcon = { Icon(Icons.Default.Person, null, tint = AuthPurplePrimary) },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor(),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            ExposedDropdownMenu(
+                                expanded = expanded,
+                                onDismissRequest = { expanded = false }
+                            ) {
+                                genders.forEach { gender ->
+                                    DropdownMenuItem(
+                                        text = { Text(gender) },
+                                        onClick = {
+                                            signupGender = gender
+                                            expanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        // Password
+                        OutlinedTextField(
+                            value = signupPassword,
+                            onValueChange = { signupPassword = it },
+                            label = { Text("Password *") },
+                            leadingIcon = { Icon(Icons.Default.Lock, null, tint = AuthPurplePrimary) },
+                            trailingIcon = {
+                                IconButton(onClick = { signupPasswordVisible = !signupPasswordVisible }) {
+                                    Icon(
+                                        if (signupPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = null
+                                    )
+                                }
+                            },
+                            visualTransformation = if (signupPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            isError = signupPassword.isNotBlank() && signupPassword.length < 6,
+                            supportingText = {
+                                if (signupPassword.isNotBlank() && signupPassword.length < 6) {
+                                    Text("Password must be at least 6 characters")
+                                }
+                            }
+                        )
+
+                        // Confirm Password
+                        OutlinedTextField(
+                            value = signupConfirmPassword,
+                            onValueChange = { signupConfirmPassword = it },
+                            label = { Text("Confirm Password *") },
+                            leadingIcon = { Icon(Icons.Default.Lock, null, tint = AuthPurplePrimary) },
+                            visualTransformation = if (signupPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            isError = signupConfirmPassword.isNotBlank() && signupPassword != signupConfirmPassword,
+                            supportingText = {
+                                if (signupConfirmPassword.isNotBlank() && signupPassword != signupConfirmPassword) {
+                                    Text("Passwords do not match")
+                                }
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Signup Button
+                        Button(
+                            onClick = {
+                                scope.launch {
+                                    // Validate
+                                    if (signupRegId.isBlank()) {
+                                        errorMessage = "Registration ID is required"
+                                        return@launch
+                                    }
+                                    if (signupName.isBlank()) {
+                                        errorMessage = "Name is required"
+                                        return@launch
+                                    }
+                                    if (signupEmail.isBlank()) {
+                                        errorMessage = "Email is required"
+                                        return@launch
+                                    }
+                                    val ageInt = signupAge.toIntOrNull()
+                                    if (ageInt == null || ageInt < 18) {
+                                        errorMessage = "Age must be 18 or older"
+                                        return@launch
+                                    }
+                                    if (signupGender.isBlank()) {
+                                        errorMessage = "Gender is required"
+                                        return@launch
+                                    }
+                                    if (signupPassword.length < 6) {
+                                        errorMessage = "Password must be at least 6 characters"
+                                        return@launch
+                                    }
+                                    if (signupPassword != signupConfirmPassword) {
+                                        errorMessage = "Passwords do not match"
+                                        return@launch
+                                    }
+
+                                    isLoading = true
+                                    errorMessage = null
+
+                                    val result = performSignup(
+                                        registrationId = signupRegId,
+                                        password = signupPassword,
+                                        name = signupName,
+                                        gender = signupGender,
+                                        email = signupEmail,
+                                        age = ageInt
+                                    )
+
+                                    isLoading = false
+
+                                    if (result.first != null) {
+                                        // Auto login after signup
+                                        val loginResult = performLogin(
+                                            context = context,
+                                            registrationId = signupRegId,
+                                            password = signupPassword
+                                        )
+                                        if (loginResult.first != null) {
+                                            onLoginSuccess(loginResult.first!!)
+                                        } else {
+                                            errorMessage = "Signup successful! Please login."
+                                            isLoginMode = true
+                                            loginRegId = signupRegId
+                                            loginPassword = signupPassword
+                                        }
+                                    } else {
+                                        errorMessage = result.second ?: "Signup failed"
+                                    }
+                                }
+                            },
+                            enabled = !isLoading &&
+                                    signupRegId.isNotBlank() &&
+                                    signupName.isNotBlank() &&
+                                    signupEmail.isNotBlank() &&
+                                    signupAge.isNotBlank() &&
+                                    signupGender.isNotBlank() &&
+                                    signupPassword.length >= 6 &&
+                                    signupPassword == signupConfirmPassword,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.Transparent
+                            ),
+                            contentPadding = PaddingValues()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(
+                                        Brush.linearGradient(
+                                            colors = listOf(AuthSageGreen, AuthPurplePrimary)
+                                        ),
+                                        RoundedCornerShape(14.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = Color.White,
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(
+                                            "Create Account",
+                                            color = Color.White,
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 16.sp
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Icon(
+                                            Icons.AutoMirrored.Filled.ArrowForward,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // Toggle between Login and Signup
+            Row(
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = if (isLoginMode) "Don't have an account? " else "Already have an account? ",
+                    color = AuthTextSecondary,
+                    fontSize = 14.sp
+                )
+                Text(
+                    text = if (isLoginMode) "Sign Up" else "Login",
+                    color = AuthPurplePrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable {
+                        isLoginMode = !isLoginMode
+                        errorMessage = null
+                    }
+                )
+            }
+        }
+    }
+}
+
+// API Functions
+suspend fun performLogin(
+    context: Context,
+    registrationId: String,
+    password: String
+): Pair<UserProfile?, String?> {
+    return withContext(Dispatchers.IO) {
+        try {
+            val url = URL("http://203.110.243.202:8000/login-user")
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.doOutput = true
+            connection.connectTimeout = 15000
+            connection.readTimeout = 15000
+
+            val requestBody = JSONObject().apply {
+                put("registration_id", registrationId)
+                put("password", password)
+            }
+
+            connection.outputStream.use { os ->
+                os.write(requestBody.toString().toByteArray())
+            }
+
+            val responseCode = connection.responseCode
+            val response = if (responseCode == 200) {
+                connection.inputStream.bufferedReader().use { it.readText() }
+            } else {
+                connection.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+            }
+            connection.disconnect()
+
+            if (responseCode == 200) {
+                val json = JSONObject(response)
+                val name = json.getString("name")
+                val email = json.getString("email")
+                val age = json.getInt("age")
+                val gender = json.getString("gender")
+                val regId = json.getString("registration_id")
+                val anonymousId = json.optString("anonymous_id", generateAnonymousId(name, regId))
+
+                // Save session
+                saveUserSession(context, regId, name, email, age, gender, anonymousId)
+
+                val profile = UserProfile(
+                    name = name,
+                    email = email,
+                    registrationId = regId,
+                    age = age,
+                    gender = gender,
+                    isLoggedIn = true,
+                    anonymousId = anonymousId
+                )
+                return@withContext Pair(profile, null)
+            } else {
+                return@withContext Pair(null, "Invalid Registration ID or Password")
+            }
+        } catch (e: Exception) {
+            return@withContext Pair(null, "Connection failed: ${e.message}")
+        }
+    }
+}
+
+suspend fun performSignup(
+    registrationId: String,
+    password: String,
+    name: String,
+    gender: String,
+    email: String,
+    age: Int
+): Pair<UserProfile?, String?> {
+    return withContext(Dispatchers.IO) {
+        try {
+            val url = URL("http://203.110.243.202:8000/register-user")
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.doOutput = true
+            connection.connectTimeout = 15000
+            connection.readTimeout = 15000
+
+            val requestBody = JSONObject().apply {
+                put("registration_id", registrationId)
+                put("password", password)
+                put("name", name)
+                put("gender", gender)
+                put("email", email)
+                put("age", age)
+                put("roll_no", registrationId)
+            }
+
+            connection.outputStream.use { os ->
+                os.write(requestBody.toString().toByteArray())
+            }
+
+            val responseCode = connection.responseCode
+            val response = if (responseCode in 200..299) {
+                connection.inputStream.bufferedReader().use { it.readText() }
+            } else {
+                connection.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+            }
+            connection.disconnect()
+
+            if (responseCode in 200..299) {
+                val anonymousId = generateAnonymousId(name, registrationId)
+                val profile = UserProfile(
+                    name = name,
+                    email = email,
+                    registrationId = registrationId,
+                    age = age,
+                    gender = gender,
+                    isLoggedIn = false,
+                    anonymousId = anonymousId
+                )
+                return@withContext Pair(profile, null)
+            } else if (responseCode == 400 && response.contains("already exists")) {
+                return@withContext Pair(null, "Registration ID already exists")
+            } else {
+                return@withContext Pair(null, "Signup failed. Please try again.")
+            }
+        } catch (e: Exception) {
+            return@withContext Pair(null, "Connection failed: ${e.message}")
+        }
+    }
+}
+
+fun saveUserSession(
+    context: Context,
+    registrationId: String,
+    name: String,
+    email: String,
+    age: Int,
+    gender: String,
+    anonymousId: String
+) {
+    val prefs = context.getSharedPreferences("user_session", Context.MODE_PRIVATE)
+    prefs.edit().apply {
+        putString("registration_id", registrationId)
+        putString("name", name)
+        putString("email", email)
+        putInt("age", age)
+        putString("gender", gender)
+        putString("anonymous_id", anonymousId)
+        putBoolean("is_logged_in", true)
+        apply()
+    }
+
+    // Also save to user_prefs for backward compatibility
+    val userPrefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
+    userPrefs.edit().apply {
+        putString("registration_id", registrationId)
+        putString("user_name", name)
+        putString("email", email)
+        putInt("user_age", age)
+        putString("user_gender", gender)
+        putString("anonymous_id", anonymousId)
+        putBoolean("is_logged_in", true)
+        apply()
+    }
+}
+
+fun generateAnonymousId(name: String, rollNo: String): String {
+    return try {
+        val input = "${name.lowercase().trim()}_${rollNo.lowercase().trim()}"
+        val md = java.security.MessageDigest.getInstance("SHA-256")
+        val hash = md.digest(input.toByteArray())
+        val hexString = hash.joinToString("") { "%02x".format(it) }
+        "STU_${hexString.take(8).uppercase()}"
+    } catch (e: Exception) {
+        "STU_${System.currentTimeMillis().toString().takeLast(8)}"
+    }
+}

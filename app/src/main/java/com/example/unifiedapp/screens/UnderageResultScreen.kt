@@ -10,12 +10,10 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,190 +32,51 @@ import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
 import com.example.unifiedapp.utils.NotificationHelper
 import com.example.unifiedapp.utils.UserSessionHelper
+import com.example.unifiedapp.utils.UploadHelper
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 
-// ============ SEVERITY LEVELS FOR DEPRESSION (used only for email) ============
-enum class SeverityLevel { MILD, MODERATE, SEVERE }
+// ✅ IMPORT the existing UploadStatus from ResultScreen
+// If UploadStatus is not accessible, we'll define it here with a different name
+// or just use local state
 
-fun getSeverityFromPHQ9(score: Int): SeverityLevel = when (score) {
-    in 0..9 -> SeverityLevel.MILD
-    in 10..18 -> SeverityLevel.MODERATE
-    else -> SeverityLevel.SEVERE
-}
-
-fun getSeverityFromAI(aiPrediction: String): SeverityLevel {
-    return when {
-        aiPrediction.contains("mild", ignoreCase = true) -> SeverityLevel.MILD
-        aiPrediction.contains("moderate", ignoreCase = true) -> SeverityLevel.MODERATE
-        aiPrediction.contains("severe", ignoreCase = true) -> SeverityLevel.SEVERE
-        else -> SeverityLevel.MILD
-    }
-}
-
-fun getOverallSeverity(phq9Score: Int, aiPrediction: String): SeverityLevel {
-    val phq9Severity = getSeverityFromPHQ9(phq9Score)
-    val aiSeverity = getSeverityFromAI(aiPrediction)
-    return maxOf(phq9Severity, aiSeverity, compareBy { it.ordinal })
-}
-
-fun getSeverityDisplay(severity: SeverityLevel): String = when (severity) {
-    SeverityLevel.MILD -> "Mild"
-    SeverityLevel.MODERATE -> "Moderate"
-    SeverityLevel.SEVERE -> "Severe"
-}
-
-// ============ MAIN UNDERAGE RESULT SCREEN (NO RESULTS DISPLAYED) ============
+// ============ MAIN UNDERAGE RESULT SCREEN ============
 @Composable
 fun UnderageResultScreen(
     navController: NavController,
-    score: Int,  // PHQ-9 score (used only for email)
+    score: Int,
     aiPrediction: String = "",
     onFinish: () -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val snackbarHostState = remember { SnackbarHostState() }
 
-    // Get user data from UserSessionHelper
+    // Get user data
     val session = UserSessionHelper.getUserData(context)
     val userName = session.name
+    val anonymousId = session.anonymousId
+    val userAge = session.age
     val registrationId = session.registrationId
 
-    // Get parent email from user_prefs (stored during registration)
-    val userPrefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-    val parentEmail = userPrefs.getString("parent_email", "") ?: ""
+    // State for upload (using simple states instead of UploadStatus class)
+    var isUploading by remember { mutableStateOf(false) }
+    var uploadSuccess by remember { mutableStateOf(false) }
+    var uploadError by remember { mutableStateOf<String?>(null) }
+    var uploadStarted by remember { mutableStateOf(false) }
 
-    var isSendingEmail by remember { mutableStateOf(false) }
-    var emailSent by remember { mutableStateOf(false) }
-    var emailError by remember { mutableStateOf<String?>(null) }
+    // Get saved scores from preferences
+    val prefs = context.getSharedPreferences("assessment_prefs", Context.MODE_PRIVATE)
+    val phq9Score = prefs.getInt("lastAssessmentScore", score)
+    val aiRawScore = prefs.getFloat("ai_raw_score", 0f)
+    val savedEmail = session.email
 
-    // Calculate severity for email (not displayed to user)
-    val overallSeverity = getOverallSeverity(score, aiPrediction)
-    val severityDisplay = getSeverityDisplay(overallSeverity)
-
-    Log.d("UnderageResult", "User: $userName, Parent Email: $parentEmail")
-    Log.d("UnderageResult", "PHQ-9 Score: $score, Severity: $severityDisplay")
-
-    // Notification permission for Android 13+
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (!isGranted) {
-            Toast.makeText(context, "Notification permission denied.", Toast.LENGTH_LONG).show()
-        }
-    }
+    Log.d("UnderageResult", "User: $userName, Age: $userAge, Score: $phq9Score")
+    Log.d("UnderageResult", "Registration ID: $registrationId, Anonymous ID: $anonymousId")
 
     LaunchedEffect(Unit) {
         NotificationHelper.createNotificationChannel(context)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            }
-        }
     }
 
-    // ============================================================
-    // SEND REPORT TO PARENT - MOCHAN DEPRESSION API
-    // ============================================================
-    fun sendReportToParent() {
-        Toast.makeText(context, "Sending report to parent...", Toast.LENGTH_SHORT).show()
-
-        scope.launch(Dispatchers.IO) {
-            try {
-                Log.d("UnderageResult", "sendReportToParent - parentEmail: '$parentEmail'")
-                Log.d("UnderageResult", "sendReportToParent - userName: '$userName'")
-                Log.d("UnderageResult", "sendReportToParent - severityDisplay: '$severityDisplay'")
-
-                if (parentEmail.isEmpty()) {
-                    Log.e("UnderageResult", "No parent email found!")
-                    withContext(Dispatchers.Main) {
-                        emailError = "No parent email found. Please contact support."
-                        isSendingEmail = false
-                    }
-                    return@launch
-                }
-
-                // Generate AI message without numeric score
-                var aiMessage = aiPrediction
-                // Remove any parentheses and their content (e.g., "Low (0-9)" -> "Low")
-                aiMessage = aiMessage.replace(Regex("\\s*\\([^)]*\\)"), "").trim()
-                if (aiMessage.isEmpty() || aiMessage == "No Data") {
-                    aiMessage = when (severityDisplay.lowercase()) {
-                        "mild" -> "Mild"
-                        "moderate" -> "Moderate"
-                        else -> "Severe"
-                    }
-                }
-
-                // Create JSON payload for Mochan endpoint
-                val jsonPayload = JSONObject().apply {
-                    put("to_email", parentEmail)
-                    put("user_name", userName)
-                    put("assessment_type", "depression")
-                    put("severity", severityDisplay)
-                    put("ai_prediction", aiMessage)
-                    put("phq9_score", score)
-                }
-
-                Log.d("UnderageResult", "JSON Payload: $jsonPayload")
-
-                // Mochan's endpoint (depression specific)
-                val url = URL("http://203.110.243.202:8000/api/send-report-via-google-mochan")
-                val connection = url.openConnection() as HttpURLConnection
-                connection.requestMethod = "POST"
-                connection.setRequestProperty("Content-Type", "application/json")
-                connection.doOutput = true
-                connection.connectTimeout = 30000
-                connection.readTimeout = 30000
-
-                connection.outputStream.use { os ->
-                    os.write(jsonPayload.toString().toByteArray())
-                }
-
-                val responseCode = connection.responseCode
-                val response = if (responseCode in 200..299) {
-                    connection.inputStream.bufferedReader().use { it.readText() }
-                } else {
-                    connection.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
-                }
-                val success = responseCode in 200..299
-
-                Log.d("UnderageResult", "Response Code: $responseCode")
-                Log.d("UnderageResult", "Response: $response")
-                Log.d("UnderageResult", "Success: $success")
-
-                withContext(Dispatchers.Main) {
-                    if (success) {
-                        emailSent = true
-                        Toast.makeText(context, "Report sent to $parentEmail", Toast.LENGTH_LONG).show()
-                    } else {
-                        emailError = "Failed to send email. Please contact support."
-                    }
-                    isSendingEmail = false
-                }
-
-            } catch (e: Exception) {
-                Log.e("UnderageResult", "Error sending email: ${e.message}", e)
-                withContext(Dispatchers.Main) {
-                    emailError = e.message ?: "Unknown error occurred"
-                    isSendingEmail = false
-                }
-            }
-        }
-    }
-
-    // UI - Simple confirmation screen (NO RESULTS SHOWN)
     Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = Color(0xFFFAFAFA)
     ) { paddingValues ->
         Box(
@@ -256,7 +115,7 @@ fun UnderageResultScreen(
                         label = "scale"
                     )
                     Icon(
-                        Icons.Default.FamilyRestroom,
+                        Icons.Default.CheckCircle,
                         contentDescription = null,
                         tint = Color(0xFF6B9071),
                         modifier = Modifier.size(56.dp).scale(scale)
@@ -266,7 +125,7 @@ fun UnderageResultScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 Text(
-                    text = if (emailSent) "Report Sent Successfully!" else "Assessment Complete!",
+                    text = if (uploadSuccess) "Assessment Submitted!" else "Assessment Complete!",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF3E4E42),
@@ -275,17 +134,25 @@ fun UnderageResultScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                if (emailSent) {
+                if (uploadSuccess) {
                     Text(
-                        text = "Your assessment report has been sent to your parent/guardian.",
+                        text = "Your assessment has been successfully uploaded to the server.",
                         fontSize = 16.sp,
                         color = Color(0xFF5D6D66),
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 24.dp)
                     )
+                } else if (uploadError != null) {
+                    Text(
+                        text = "Upload failed: ${uploadError}",
+                        fontSize = 14.sp,
+                        color = Color(0xFFEF4444),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 24.dp)
+                    )
                 } else {
                     Text(
-                        text = "Since you're under 18, your assessment results will be shared with your parent/guardian.\n\nPlease click below to send the report.",
+                        text = "Your assessment is complete. Click below to upload your data to the server.",
                         fontSize = 16.sp,
                         color = Color(0xFF5D6D66),
                         textAlign = TextAlign.Center,
@@ -295,76 +162,42 @@ fun UnderageResultScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Send Report Button (shown only if email not sent yet)
-                if (!emailSent) {
-                    Button(
-                        onClick = { sendReportToParent() },
-                        enabled = !isSendingEmail && parentEmail.isNotEmpty(),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF6B9071),
-                            disabledContainerColor = Color(0xFFD3E4D6)
-                        )
+                // Upload Status Card
+                if (uploadStarted && isUploading) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE3F2FD)),
+                        shape = RoundedCornerShape(16.dp)
                     ) {
-                        if (isSendingEmail) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    color = Color.White,
-                                    strokeWidth = 2.dp
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp,
+                                color = Color(0xFF1976D2)
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    "Uploading...",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1976D2)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Sending...", color = Color.White, fontWeight = FontWeight.Bold)
-                            }
-                        } else {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.Send,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(20.dp),
-                                    tint = Color.White
+                                Text(
+                                    "Please wait while your data is uploaded",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF1976D2).copy(alpha = 0.7f)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Send Report to Parent", color = Color.White, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
-
-                    if (parentEmail.isEmpty()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            "⚠️ No parent email found. Please contact support.",
-                            fontSize = 12.sp,
-                            color = Color(0xFFEF4444),
-                            textAlign = TextAlign.Center
-                        )
-                    }
-
-                    if (emailError != null) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            emailError!!,
-                            fontSize = 12.sp,
-                            color = Color(0xFFEF4444),
-                            textAlign = TextAlign.Center
-                        )
-                    }
-                } else {
-                    // Success message after email sent
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Surface(
-                        color = Color(0xFFE8F5E9),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
+                } else if (uploadSuccess) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFE8F5E9)),
+                        shape = RoundedCornerShape(16.dp)
                     ) {
                         Row(
                             modifier = Modifier.padding(16.dp),
@@ -376,20 +209,150 @@ fun UnderageResultScreen(
                                 tint = Color(0xFF4CAF50),
                                 modifier = Modifier.size(24.dp)
                             )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                "Report sent successfully to $parentEmail",
-                                fontSize = 14.sp,
-                                color = Color(0xFF2E7D32),
-                                fontWeight = FontWeight.Medium
-                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    "Upload Successful!",
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF2E7D32)
+                                )
+                                Text(
+                                    "Your data has been saved to the server",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF2E7D32).copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    }
+                } else if (uploadError != null) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFEBEE)),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Default.Error,
+                                    contentDescription = null,
+                                    tint = Color(0xFFEF4444),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column {
+                                    Text(
+                                        "Upload Failed",
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFC62828)
+                                    )
+                                    Text(
+                                        uploadError!!.take(50),
+                                        fontSize = 12.sp,
+                                        color = Color(0xFFC62828).copy(alpha = 0.7f)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Button(
+                                onClick = {
+                                    // Reset and retry
+                                    uploadError = null
+                                    uploadSuccess = false
+                                    uploadStarted = false
+                                    isUploading = false
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444))
+                            ) {
+                                Text("Retry Upload", color = Color.White)
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Upload Button (shown only if upload not successful)
+                if (!uploadSuccess) {
+                    Button(
+                        onClick = {
+                            if (!isUploading && anonymousId.isNotBlank()) {
+                                uploadStarted = true
+                                isUploading = true
+                                uploadError = null
+
+                                scope.launch {
+                                    UploadHelper.uploadAssessment(
+                                        context = context,
+                                        coroutineScope = scope,
+                                        anonymousId = anonymousId,
+                                        age = userAge,
+                                        aiRawScore = aiRawScore,
+                                        email = savedEmail,
+                                        registrationId = registrationId,
+                                        onProgress = { progress, message ->
+                                            Log.d("UnderageResult", "Upload progress: $progress% - $message")
+                                        },
+                                        onSuccess = { message ->
+                                            isUploading = false
+                                            uploadSuccess = true
+                                            Toast.makeText(context, "Assessment uploaded successfully!", Toast.LENGTH_LONG).show()
+                                        },
+                                        onError = { error ->
+                                            isUploading = false
+                                            uploadError = error
+                                            Toast.makeText(context, "Upload failed: $error", Toast.LENGTH_LONG).show()
+                                        }
+                                    )
+                                }
+                            } else {
+                                Toast.makeText(context, "Please login to upload data", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        enabled = !isUploading,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF6B9071),
+                            disabledContainerColor = Color(0xFFD3E4D6)
+                        )
+                    ) {
+                        if (isUploading) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    color = Color.White,
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Uploading...", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
+                        } else {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.CloudUpload,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                    tint = Color.White
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Upload to Server", color = Color.White, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // Return Home button (always visible)
+                // Return Home button
                 Button(
                     onClick = onFinish,
                     modifier = Modifier

@@ -30,19 +30,18 @@ object UserSessionHelper {
             putLong("last_updated", System.currentTimeMillis())
             apply()
         }
-        Log.d(TAG, "✅ Saved user data - Reg ID: ${userData.registrationId}, Anon ID: ${userData.anonymousId}")
+        Log.d(TAG, "✅ Saved user data - Reg ID: ${userData.registrationId}")
     }
 
     fun getUserData(context: Context): UserData {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val anonymousId = prefs.getString("anonymous_id", "") ?: ""
         return UserData(
             name = prefs.getString("user_name", "") ?: "",
             gender = prefs.getString("user_gender", "") ?: "",
             email = prefs.getString("user_email", "") ?: "",
             age = prefs.getInt("user_age", 0),
             registrationId = prefs.getString("registration_id", "") ?: "",
-            anonymousId = anonymousId,
+            anonymousId = prefs.getString("anonymous_id", "") ?: "",
             isLoggedIn = prefs.getBoolean("is_logged_in", false)
         )
     }
@@ -68,31 +67,7 @@ object UserSessionHelper {
         Log.d(TAG, "User logged out")
     }
 
-    // ADD THIS: Verification function
-    fun verifyAnonymousIdConsistency(context: Context): Boolean {
-        val sessionData = getUserData(context)
-
-        // Check user_prefs for backward compatibility
-        val userPrefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
-        val prefsAnonId = userPrefs.getString("anonymous_id", "")
-
-        val isConsistent = sessionData.anonymousId == prefsAnonId
-
-        Log.d(TAG, "=== ANONYMOUS ID VERIFICATION ===")
-        Log.d(TAG, "Session Anonymous ID: ${sessionData.anonymousId}")
-        Log.d(TAG, "user_prefs Anonymous ID: $prefsAnonId")
-        Log.d(TAG, "Consistent: $isConsistent")
-
-        return isConsistent
-    }
-
     fun clearUserData(context: Context) {
-        val prefs = context.getSharedPreferences("user_session", Context.MODE_PRIVATE)
-        prefs.edit().clear().apply()
+        logout(context)
     }
-
-//    fun getRegistrationId(context: Context): String {
-//        val prefs = context.getSharedPreferences("user_session", Context.MODE_PRIVATE)
-//        return prefs.getString("registration_id", "") ?: ""
-//    }
 }
