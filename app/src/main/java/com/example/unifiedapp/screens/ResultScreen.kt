@@ -59,8 +59,10 @@ import androidx.core.content.FileProvider
 import kotlinx.coroutines.delay
 import com.example.unifiedapp.utils.TrialHelper
 
-// ============ DATA CLASSES ============
 
+
+// ============ DATA CLASSES ============
+// test123
 data class SeverityData(
     val level: String,
     val levelEmoji: String,
@@ -141,10 +143,14 @@ val SevereLightColor = Color(0xFFFFF1F2)   // Light Red
 @Composable
 fun ResultScreen(
     navController: NavController,
-    score: Int // PHQ-9 score (0-27)
+    score: Int, // Questionnaire score
+    assessmentType: String = "depression" // ✅ ADDED
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+
+    val isDepression = assessmentType == "depression"
+    val maxQuestionnaireScore = if (isDepression) 27 else 21
 
     val session = UserSessionHelper.getUserData(context)
     val savedEmail = session.email
@@ -156,26 +162,31 @@ fun ResultScreen(
 
     Log.d("RESULT_SCREEN", "User session - Name: $userName, Reg ID: $registrationId")
 
-
     val isUnderage = userAge < 18
-    LaunchedEffect(isUnderage) {
-        if (isUnderage) {
-            // Get AI prediction label
-            val prefs = context.getSharedPreferences("assessment_prefs", Context.MODE_PRIVATE)
-            val aiLabel = prefs.getString("ai_prediction_label", "") ?: ""
+    var hasRedirected by remember { mutableStateOf(false) }
 
-            // Redirect to underage results screen
+    LaunchedEffect(isUnderage) {
+        if (isUnderage && !hasRedirected) {
+            hasRedirected = true
+            val prefs = context.getSharedPreferences("assessment_prefs", Context.MODE_PRIVATE)
+            val aiLabel = prefs.getString("ai_prediction_label", "N/A") ?: "N/A"
             try {
                 val encodedLabel = java.net.URLEncoder.encode(aiLabel, "UTF-8")
-                navController.navigate("underage_results?score=$score&aiPrediction=$encodedLabel") {
-                    popUpTo(navController.currentDestination?.route ?: "result/{score}") { inclusive = true }
+                navController.navigate("underage_result?score=$score&aiPrediction=$encodedLabel") {
+                    popUpTo(navController.currentBackStackEntry?.destination?.route ?: "launcher") { inclusive = true }
                 }
             } catch (e: Exception) {
-                Log.e("RESULT_SCREEN", "Navigation to underage_results failed: ${e.message}")
+                Log.e("RESULT_SCREEN", "Navigation failed: ${e.message}")
             }
         }
     }
 
+    if (isUnderage) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = Color(0xFF6B9071))
+        }
+        return
+    }
 
     // Retrieve AI prediction data
     val prefs = context.getSharedPreferences("assessment_prefs", Context.MODE_PRIVATE)
@@ -198,8 +209,8 @@ fun ResultScreen(
         )
     } else null
 
-    // Get severity data for PHQ-9
-    val phq9SeverityData = getSeverityDataFromScore(score)
+    // Get severity data for Questionnaire
+    val phq9SeverityData = getSeverityDataFromScore(score, isDepression)
 
     // Get severity class for AI
     val aiSeverityData = if (aiData != null) {
@@ -231,11 +242,9 @@ fun ResultScreen(
     LaunchedEffect(Unit) {
         if (!trialDecremented && registrationId.isNotBlank()) {
             trialDecremented = true
-            coroutineScope.launch {
-                val success = TrialHelper.useDepressionTrial(registrationId)
-                if (!success) {
-                    Toast.makeText(context, "Failed to update trial count", Toast.LENGTH_SHORT).show()
-                }
+            val success = TrialHelper.useDepressionTrial(registrationId)
+            if (!success) {
+                Toast.makeText(context, "Failed to update trial count", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -277,6 +286,7 @@ fun ResultScreen(
                                         isUploading = { isUploading = it },
                                         uploadStatus = { uploadStatus = it },
                                         uploadStarted = { uploadStarted = it }
+
                                     )
                                 }
                             }
@@ -357,14 +367,14 @@ fun ResultScreen(
                             .height(240.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // PHQ-9 Card (left)
+                        // Questionnaire Card (left)
                         EnhancedAssessmentCard(
-                            title = "Questionnaire",
+                            title = if (isDepression) "PHQ-9" else "GAD-7",
                             severityData = phq9SeverityData,
                             icon = Icons.Default.Description,
                             gradient = GradientOrangeRed,
                             score = score,
-                            maxScore = 27,
+                            maxScore = maxQuestionnaireScore,
                             modifier = Modifier.weight(1f)
                         )
 
@@ -2270,122 +2280,177 @@ fun getSeverityLevel(level: String): Int {
     }
 }
 
-fun getSeverityDataFromScore(score: Int): SeverityData {
-    return when {
-        score <= 9 -> SeverityData(
-            level = "Mild",
-            levelEmoji = "🟢",
-            primaryColor = MildColor,
-            secondaryColor = MildSecondary,
-            gradient = MildGradient,
-            bgColor = MildLightColor,
-            lightBgColor = MildLightColor,
-            borderColor = Color(0xFF34D399),
-            icon = Icons.Default.Description,
-            description = "Your responses suggest mild symptoms. Consider preventive measures and self-care.",
-            recommendations = listOf(
-                RecommendationItem(
-                    icon = "🧘",
-                    title = "Practice daily mindfulness",
-                    description = "Start with just 5-10 minutes of meditation or deep breathing exercises each day to reduce stress.",
-                    actionColor = MildColor
-                ),
-                RecommendationItem(
-                    icon = "🏃",
-                    title = "Maintain regular exercise",
-                    description = "Gentle activities like walking, yoga, or stretching can significantly improve your mood and energy levels.",
-                    actionColor = MildColor
-                ),
-                RecommendationItem(
-                    icon = "👪",
-                    title = "Connect with others",
-                    description = "Regular social connections, even brief check-ins with friends or family, help maintain emotional balance.",
-                    actionColor = MildColor
-                ),
-                RecommendationItem(
-                    icon = "📓",
-                    title = "Keep a mood journal",
-                    description = "Track your daily emotions, triggers, and coping strategies to better understand your patterns.",
-                    actionColor = MildColor
+fun getSeverityDataFromScore(score: Int, isDepression: Boolean = true): SeverityData {
+    if (isDepression) {
+        return when {
+            score <= 9 -> SeverityData(
+                level = "Mild",
+                levelEmoji = "🟢",
+                primaryColor = MildColor,
+                secondaryColor = MildSecondary,
+                gradient = MildGradient,
+                bgColor = MildLightColor,
+                lightBgColor = MildLightColor,
+                borderColor = Color(0xFF34D399),
+                icon = Icons.Default.Description,
+                description = "Your responses suggest mild symptoms. Consider preventive measures and self-care.",
+                recommendations = listOf(
+                    RecommendationItem(
+                        icon = "🧘",
+                        title = "Practice daily mindfulness",
+                        description = "Start with just 5-10 minutes of meditation or deep breathing exercises each day to reduce stress.",
+                        actionColor = MildColor
+                    ),
+                    RecommendationItem(
+                        icon = "🏃",
+                        title = "Maintain regular exercise",
+                        description = "Gentle activities like walking, yoga, or stretching can significantly improve your mood and energy levels.",
+                        actionColor = MildColor
+                    ),
+                    RecommendationItem(
+                        icon = "👪",
+                        title = "Connect with others",
+                        description = "Regular social connections, even brief check-ins with friends or family, help maintain emotional balance.",
+                        actionColor = MildColor
+                    ),
+                    RecommendationItem(
+                        icon = "📓",
+                        title = "Keep a mood journal",
+                        description = "Track your daily emotions, triggers, and coping strategies to better understand your patterns.",
+                        actionColor = MildColor
+                    )
                 )
             )
-        )
-        score <= 18 -> SeverityData(
-            level = "Moderate",
-            levelEmoji = "🟡",
-            primaryColor = ModerateColor,
-            secondaryColor = ModerateSecondary,
-            gradient = ModerateGradient,
-            bgColor = ModerateLightColor,
-            lightBgColor = ModerateLightColor,
-            borderColor = Color(0xFFFBBF24),
-            icon = Icons.Default.Description,
-            description = "Your responses indicate moderate symptoms. Professional guidance is recommended.",
-            recommendations = listOf(
-                RecommendationItem(
-                    icon = "🏥",
-                    title = "Consult a mental health professional",
-                    description = "Consider scheduling a session with a therapist or counselor to discuss your symptoms.",
-                    actionColor = ModerateColor
-                ),
-                RecommendationItem(
-                    icon = "💬",
-                    title = "Build a support network",
-                    description = "Connect with trusted friends, family, or support groups who can provide emotional support.",
-                    actionColor = ModerateColor
-                ),
-                RecommendationItem(
-                    icon = "📋",
-                    title = "Create a daily routine",
-                    description = "Maintain regular sleep, meals, and activities to support emotional stability.",
-                    actionColor = ModerateColor
-                ),
-                RecommendationItem(
-                    icon = "📊",
-                    title = "Track your symptoms",
-                    description = "Keep a log of your moods and triggers to identify patterns and share with your healthcare provider.",
-                    actionColor = ModerateColor
+            score <= 18 -> SeverityData(
+                level = "Moderate",
+                levelEmoji = "🟡",
+                primaryColor = ModerateColor,
+                secondaryColor = ModerateSecondary,
+                gradient = ModerateGradient,
+                bgColor = ModerateLightColor,
+                lightBgColor = ModerateLightColor,
+                borderColor = Color(0xFFFBBF24),
+                icon = Icons.Default.Description,
+                description = "Your responses indicate moderate symptoms. Professional guidance is recommended.",
+                recommendations = listOf(
+                    RecommendationItem(
+                        icon = "🏥",
+                        title = "Consult a mental health professional",
+                        description = "Consider scheduling a session with a therapist or counselor to discuss your symptoms.",
+                        actionColor = ModerateColor
+                    ),
+                    RecommendationItem(
+                        icon = "💬",
+                        title = "Build a support network",
+                        description = "Connect with trusted friends, family, or support groups who can provide emotional support.",
+                        actionColor = ModerateColor
+                    ),
+                    RecommendationItem(
+                        icon = "📋",
+                        title = "Create a daily routine",
+                        description = "Maintain regular sleep, meals, and activities to support emotional stability.",
+                        actionColor = ModerateColor
+                    ),
+                    RecommendationItem(
+                        icon = "📊",
+                        title = "Track your symptoms",
+                        description = "Keep a log of your moods and triggers to identify patterns and share with your healthcare provider.",
+                        actionColor = ModerateColor
+                    )
                 )
             )
-        )
-        else -> SeverityData(
-            level = "Severe",
-            levelEmoji = "🔴",
-            primaryColor = SevereColor,
-            secondaryColor = SevereSecondary,
-            gradient = SevereGradient,
-            bgColor = SevereLightColor,
-            lightBgColor = SevereLightColor,
-            borderColor = Color(0xFFFB7185),
-            icon = Icons.Default.Description,
-            description = "Your responses indicate severe symptoms. Immediate professional support is advised.",
-            recommendations = listOf(
-                RecommendationItem(
-                    icon = "🏥",
-                    title = "Seek professional help immediately",
-                    description = "Contact a mental health professional, hospital, or clinic for immediate assessment and care.",
-                    actionColor = SevereColor
-                ),
-                RecommendationItem(
-                    icon = "📞",
-                    title = "Contact crisis services",
-                    description = "Call a mental health helpline (988) or local emergency number if you feel unsafe.",
-                    actionColor = SevereColor
-                ),
-                RecommendationItem(
-                    icon = "👥",
-                    title = "Reach out to trusted people",
-                    description = "Don't stay alone. Connect with someone you trust and let them know you need support.",
-                    actionColor = SevereColor
-                ),
-                RecommendationItem(
-                    icon = "⚕️",
-                    title = "Consider intensive treatment",
-                    description = "Discuss intensive outpatient programs or other treatment options with a healthcare provider.",
-                    actionColor = SevereColor
+            else -> SeverityData(
+                level = "Severe",
+                levelEmoji = "🔴",
+                primaryColor = SevereColor,
+                secondaryColor = SevereSecondary,
+                gradient = SevereGradient,
+                bgColor = SevereLightColor,
+                lightBgColor = SevereLightColor,
+                borderColor = Color(0xFFFB7185),
+                icon = Icons.Default.Description,
+                description = "Your responses indicate severe symptoms. Immediate professional support is advised.",
+                recommendations = listOf(
+                    RecommendationItem(
+                        icon = "🏥",
+                        title = "Seek professional help immediately",
+                        description = "Contact a mental health professional, hospital, or clinic for immediate assessment and care.",
+                        actionColor = SevereColor
+                    ),
+                    RecommendationItem(
+                        icon = "📞",
+                        title = "Contact crisis services",
+                        description = "Call a mental health helpline (988) or local emergency number if you feel unsafe.",
+                        actionColor = SevereColor
+                    ),
+                    RecommendationItem(
+                        icon = "👥",
+                        title = "Reach out to trusted people",
+                        description = "Don't stay alone. Connect with someone you trust and let them know you need support.",
+                        actionColor = SevereColor
+                    ),
+                    RecommendationItem(
+                        icon = "⚕️",
+                        title = "Consider intensive treatment",
+                        description = "Discuss intensive outpatient programs or other treatment options with a healthcare provider.",
+                        actionColor = SevereColor
+                    )
                 )
             )
-        )
+        }
+    } else {
+        // GAD-7 range: 0-5 Mild, 6-10 Moderate, 11-15 Moderately Severe, 16-21 Severe
+        // (Simplifying to 3 categories to match UI)
+        return when {
+            score <= 5 -> SeverityData(
+                level = "Mild",
+                levelEmoji = "🟢",
+                primaryColor = MildColor,
+                secondaryColor = MildSecondary,
+                gradient = MildGradient,
+                bgColor = MildLightColor,
+                lightBgColor = MildLightColor,
+                borderColor = Color(0xFF34D399),
+                icon = Icons.Default.Description,
+                description = "Your responses suggest mild anxiety. Continue with self-care and stress management.",
+                recommendations = listOf(
+                    RecommendationItem("🧘", "Breathing exercises", "Practice deep breathing when feeling tense.", MildColor),
+                    RecommendationItem("🚶", "Active lifestyle", "Regular walks can help reduce anxiety levels.", MildColor)
+                )
+            )
+            score <= 10 -> SeverityData(
+                level = "Moderate",
+                levelEmoji = "🟡",
+                primaryColor = ModerateColor,
+                secondaryColor = ModerateSecondary,
+                gradient = ModerateGradient,
+                bgColor = ModerateLightColor,
+                lightBgColor = ModerateLightColor,
+                borderColor = Color(0xFFFBBF24),
+                icon = Icons.Default.Description,
+                description = "Your responses indicate moderate anxiety. Consider professional guidance.",
+                recommendations = listOf(
+                    RecommendationItem("🏥", "Professional consultation", "Discuss your feelings with a counsellor.", ModerateColor),
+                    RecommendationItem("💬", "Social support", "Talk to people you trust about your worries.", ModerateColor)
+                )
+            )
+            else -> SeverityData(
+                level = "Severe",
+                levelEmoji = "🔴",
+                primaryColor = SevereColor,
+                secondaryColor = SevereSecondary,
+                gradient = SevereGradient,
+                bgColor = SevereLightColor,
+                lightBgColor = SevereLightColor,
+                borderColor = Color(0xFFFB7185),
+                icon = Icons.Default.Description,
+                description = "Your responses indicate severe anxiety. Professional support is advised.",
+                recommendations = listOf(
+                    RecommendationItem("🏥", "Immediate assistance", "Contact a mental health provider right away.", SevereColor),
+                    RecommendationItem("📞", "Crisis support", "Reach out to Tele MANAS for immediate help.", SevereColor)
+                )
+            )
+        }
     }
 }
 

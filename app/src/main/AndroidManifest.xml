@@ -15,12 +15,12 @@
     <!-- Camera Permissions -->
     <uses-permission android:name="android.permission.CAMERA" />
 
-    <!-- Storage Permissions (for saving videos and CSV files) -->
+    <!-- Storage Permissions -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
 
-    <!-- For Android 13+ (API 33+) -->
+    <!-- For Android 13+ -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
 
@@ -55,14 +55,9 @@
             </intent-filter>
         </activity>
 
-        <!-- Upload Service -->
-        <service
-            android:name=".services.UploadService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="dataSync" />
+        <!-- ✅ UploadService entry REMOVED (file deleted) -->
 
-        <!-- File Provider for sharing PDF reports (Android 7+) -->
+        <!-- File Provider for PDF reports -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

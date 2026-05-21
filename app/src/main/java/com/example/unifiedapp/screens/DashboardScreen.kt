@@ -30,8 +30,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.unifiedapp.R
+import com.example.unifiedapp.data.UserProfile
 import com.example.unifiedapp.data.UserSessionManager
-import com.example.unifiedapp.ui.auth.UserProfile
+import com.example.unifiedapp.navigation.Screen  // ✅ ADD THIS IMPORT
 import com.example.unifiedapp.utils.TrialHelper
 import kotlinx.coroutines.launch
 
@@ -59,6 +60,8 @@ fun DashboardScreen(
     var showNoTrialsDialog by remember { mutableStateOf(false) }
     var remainingTrials by remember { mutableStateOf<Int?>(null) }
     var isLoadingTrials by remember { mutableStateOf(false) }
+
+    var loginToastShown by remember { mutableStateOf(false) }
 
     LaunchedEffect(isLoggedIn, registrationId) {
         if (isLoggedIn && registrationId.isNotEmpty()) {
@@ -134,25 +137,29 @@ fun DashboardScreen(
                     registrationId = registrationId,
                     onShowNoTrialsDialog = { showNoTrialsDialog = it },
                     onLoginClick = {
-                        // Show toast instead of navigating to non-existent "auth" route
-                        Toast.makeText(
-                            context,
-                            "Please login from Profile tab",
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        if (!loginToastShown) {
+                            loginToastShown = true
+                            Toast.makeText(context, "Please login from Profile tab", Toast.LENGTH_SHORT).show()
+                            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ loginToastShown = false }, 2000)
+                        }
                     }
                 )
 
-                BottomNavItem.Wellness -> UnifiedWellnessContent(
-                    navController = navController
-                )
+                BottomNavItem.Wellness -> UnifiedWellnessContent(navController = navController)
 
                 BottomNavItem.Profile -> UnifiedProfileContent(
                     navController = navController,
                     isLoggedIn = isLoggedIn,
                     userName = userName,
                     userData = userData,
-                    onLogout = onLogout
+                    onLogout = {
+                        sessionManager.logout()
+                        navController.navigate(Screen.LAUNCHER) {
+                            popUpTo(0) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                        onLogout()
+                    }
                 )
             }
         }
@@ -171,6 +178,9 @@ fun DashboardScreen(
         )
     }
 }
+
+// The rest of the file (UnifiedHomeContent, UnifiedWellnessContent, UnifiedProfileContent) remains unchanged
+// except that we now use Screen constants in navigation calls.
 
 @Composable
 fun UnifiedHomeContent(
@@ -195,7 +205,6 @@ fun UnifiedHomeContent(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
-        // Header
         Surface(
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
             color = Color(0xFFFFFDF9).copy(alpha = 0.75f),
@@ -234,16 +243,13 @@ fun UnifiedHomeContent(
             modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Sahay - Anxiety Assessment Card
+            // Sahay Card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
-                        if (isLoggedIn) {
-                            navController.navigate("sahay_consent")
-                        } else {
-                            onLoginClick()
-                        }
+                        if (isLoggedIn) navController.navigate(Screen.SAHAY_CONSENT)
+                        else onLoginClick()
                     },
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.Transparent),
@@ -252,9 +258,7 @@ fun UnifiedHomeContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
-                            Brush.linearGradient(colors = listOf(Color(0xFFE3F2FD), Color(0xFFBBDEFB)))
-                        )
+                        .background(Brush.linearGradient(colors = listOf(Color(0xFFE3F2FD), Color(0xFFBBDEFB))))
                         .padding(20.dp)
                 ) {
                     Column {
@@ -266,64 +270,33 @@ fun UnifiedHomeContent(
                             Box(
                                 modifier = Modifier
                                     .size(48.dp)
-                                    .background(
-                                        Brush.linearGradient(listOf(Color(0xFF42A5F5), Color(0xFF1E88E5))),
-                                        RoundedCornerShape(14.dp)
-                                    ),
+                                    .background(Brush.linearGradient(listOf(Color(0xFF42A5F5), Color(0xFF1E88E5))), RoundedCornerShape(14.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.MonitorHeart,
-                                    contentDescription = "Anxiety",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(28.dp)
-                                )
+                                Icon(Icons.Default.MonitorHeart, contentDescription = "Anxiety", tint = Color.White, modifier = Modifier.size(28.dp))
                             }
-                            Surface(
-                                color = Color.White.copy(alpha = 0.8f),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text(
-                                    text = "GAD-7",
-                                    color = Color(0xFF1565C0),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                )
+                            Surface(color = Color.White.copy(alpha = 0.8f), shape = RoundedCornerShape(8.dp)) {
+                                Text("GAD-7", color = Color(0xFF1565C0), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
                             }
                         }
                         Spacer(Modifier.height(16.dp))
-                        Text(
-                            text = "Anxiety Assessment",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1F2937)
-                        )
-                        Text(
-                            text = "GAD-7 questionnaire with AI-powered facial analysis",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFF4B5563)
-                        )
+                        Text("Anxiety Assessment", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                        Text("GAD-7 questionnaire with AI-powered facial analysis", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF4B5563))
                         Spacer(Modifier.height(16.dp))
-                        Text(
-                            text = "Takes 3–4 minutes • Camera required",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF6B7280)
-                        )
+                        Text("Takes 3–4 minutes • Camera required", style = MaterialTheme.typography.labelSmall, color = Color(0xFF6B7280))
                     }
                 }
             }
 
-            // Mochan - Depression Assessment Card
+            // Mochan Card
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
                         if (isLoggedIn) {
                             coroutineScope.launch {
-                                val canProceed = TrialHelper.checkDepressionTrials(registrationId)
-                                if (canProceed) {
-                                    navController.navigate("mochan_consent")
+                                if (TrialHelper.checkDepressionTrials(registrationId)) {
+                                    navController.navigate(Screen.MOCHAN_CONSENT)
                                 } else {
                                     onShowNoTrialsDialog(true)
                                 }
@@ -339,9 +312,7 @@ fun UnifiedHomeContent(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(
-                            Brush.linearGradient(colors = listOf(Color(0xFFFFF0F5), Color(0xFFFFF7ED)))
-                        )
+                        .background(Brush.linearGradient(colors = listOf(Color(0xFFFFF0F5), Color(0xFFFFF7ED))))
                         .padding(20.dp)
                 ) {
                     Column {
@@ -353,63 +324,28 @@ fun UnifiedHomeContent(
                             Box(
                                 modifier = Modifier
                                     .size(48.dp)
-                                    .background(
-                                        Brush.linearGradient(listOf(Color(0xFFFF8A80), Color(0xFFFFB74D))),
-                                        RoundedCornerShape(14.dp)
-                                    ),
+                                    .background(Brush.linearGradient(listOf(Color(0xFFFF8A80), Color(0xFFFFB74D))), RoundedCornerShape(14.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.MonitorHeart,
-                                    contentDescription = "Depression",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(28.dp)
-                                )
+                                Icon(Icons.Default.MonitorHeart, contentDescription = "Depression", tint = Color.White, modifier = Modifier.size(28.dp))
                             }
-                            Surface(
-                                color = Color.White.copy(alpha = 0.8f),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text(
-                                    text = "PHQ-9",
-                                    color = Color(0xFFBE185D),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                )
+                            Surface(color = Color.White.copy(alpha = 0.8f), shape = RoundedCornerShape(8.dp)) {
+                                Text("PHQ-9", color = Color(0xFFBE185D), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
                             }
                         }
                         Spacer(Modifier.height(16.dp))
-                        Text(
-                            text = "Depression Assessment",
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1F2937)
-                        )
-                        Text(
-                            text = "PHQ-9 questionnaire with AI facial analysis",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color(0xFF4B5563)
-                        )
-
+                        Text("Depression Assessment", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                        Text("PHQ-9 questionnaire with AI facial analysis", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF4B5563))
                         when {
                             isLoggedIn && !isLoadingTrials && trialsRemaining != null -> {
                                 Spacer(Modifier.height(12.dp))
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier
-                                        .background(
-                                            Color(0xFFFFE4E8),
-                                            RoundedCornerShape(20.dp)
-                                        )
+                                        .background(Color(0xFFFFE4E8), RoundedCornerShape(20.dp))
                                         .padding(horizontal = 12.dp, vertical = 6.dp)
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Info,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                        tint = Color(0xFFE91E63)
-                                    )
+                                    Icon(Icons.Default.Info, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFFE91E63))
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = when (trialsRemaining) {
@@ -428,34 +364,17 @@ fun UnifiedHomeContent(
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier
-                                        .background(
-                                            Color(0xFFFFE4E8),
-                                            RoundedCornerShape(20.dp)
-                                        )
+                                        .background(Color(0xFFFFE4E8), RoundedCornerShape(20.dp))
                                         .padding(horizontal = 12.dp, vertical = 6.dp)
                                 ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(14.dp),
-                                        strokeWidth = 1.5.dp,
-                                        color = Color(0xFFE91E63)
-                                    )
+                                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 1.5.dp, color = Color(0xFFE91E63))
                                     Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = "Checking trials...",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        fontWeight = FontWeight.Medium,
-                                        color = Color(0xFFC62828)
-                                    )
+                                    Text("Checking trials...", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Medium, color = Color(0xFFC62828))
                                 }
                             }
                         }
-
                         Spacer(Modifier.height(16.dp))
-                        Text(
-                            text = "Takes 2–3 minutes • Private & secure",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF6B7280)
-                        )
+                        Text("Takes 2–3 minutes • Private & secure", style = MaterialTheme.typography.labelSmall, color = Color(0xFF6B7280))
                     }
                 }
             }
@@ -464,26 +383,16 @@ fun UnifiedHomeContent(
 }
 
 @Composable
-fun UnifiedWellnessContent(
-    navController: NavController
-) {
+fun UnifiedWellnessContent(navController: NavController) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text(
-            text = "Wellness Tools",
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF1F2937)
-        )
+        Text("Wellness Tools", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
 
-        Card(
-            modifier = Modifier.fillMaxWidth().clickable { navController.navigate("breathing") },
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
+        Card(modifier = Modifier.fillMaxWidth().clickable { navController.navigate(Screen.BREATHING) }, elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
             Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Air, contentDescription = null, tint = Color(0xFF8B5CF6))
                 Spacer(modifier = Modifier.width(16.dp))
@@ -494,10 +403,7 @@ fun UnifiedWellnessContent(
             }
         }
 
-        Card(
-            modifier = Modifier.fillMaxWidth().clickable { navController.navigate("sounds") },
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
+        Card(modifier = Modifier.fillMaxWidth().clickable { navController.navigate(Screen.SOUNDS) }, elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
             Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.MusicNote, contentDescription = null, tint = Color(0xFF8B5CF6))
                 Spacer(modifier = Modifier.width(16.dp))
@@ -508,10 +414,7 @@ fun UnifiedWellnessContent(
             }
         }
 
-        Card(
-            modifier = Modifier.fillMaxWidth().clickable { navController.navigate("mood_tracker") },
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
+        Card(modifier = Modifier.fillMaxWidth().clickable { navController.navigate(Screen.MOOD_TRACKER) }, elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
             Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Favorite, contentDescription = null, tint = Color(0xFF8B5CF6))
                 Spacer(modifier = Modifier.width(16.dp))
@@ -522,10 +425,7 @@ fun UnifiedWellnessContent(
             }
         }
 
-        Card(
-            modifier = Modifier.fillMaxWidth().clickable { navController.navigate("journal") },
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
+        Card(modifier = Modifier.fillMaxWidth().clickable { navController.navigate(Screen.JOURNAL) }, elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
             Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFF8B5CF6))
                 Spacer(modifier = Modifier.width(16.dp))
@@ -536,10 +436,7 @@ fun UnifiedWellnessContent(
             }
         }
 
-        Card(
-            modifier = Modifier.fillMaxWidth().clickable { navController.navigate("grounding") },
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
+        Card(modifier = Modifier.fillMaxWidth().clickable { navController.navigate(Screen.GROUNDING) }, elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
             Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Nature, contentDescription = null, tint = Color(0xFF8B5CF6))
                 Spacer(modifier = Modifier.width(16.dp))
@@ -561,6 +458,7 @@ fun UnifiedProfileContent(
     onLogout: () -> Unit
 ) {
     val context = LocalContext.current
+    var loginToastShown by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -603,12 +501,7 @@ fun UnifiedProfileContent(
                             .border(3.dp, Color.White, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = userName.take(1).uppercase(),
-                            fontSize = 40.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF8B5CF6)
-                        )
+                        Text(text = userName.take(1).uppercase(), fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Color(0xFF8B5CF6))
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(text = userName, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color.White)
@@ -622,7 +515,7 @@ fun UnifiedProfileContent(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Card(
-                    modifier = Modifier.fillMaxWidth().clickable { navController.navigate("assessment_history") },
+                    modifier = Modifier.fillMaxWidth().clickable { navController.navigate(Screen.ASSESSMENT_HISTORY) },
                     shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -635,19 +528,19 @@ fun UnifiedProfileContent(
                                 .background(Brush.linearGradient(colors = listOf(Color(0xFF8B5CF6), Color(0xFFA78BFA)))),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(imageVector = Icons.Default.History, contentDescription = "History", tint = Color.White, modifier = Modifier.size(22.dp))
+                            Icon(Icons.Default.History, contentDescription = "History", tint = Color.White, modifier = Modifier.size(22.dp))
                         }
                         Spacer(modifier = Modifier.width(14.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "Assessment History", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1F2937))
-                            Text(text = "View your past assessment results", fontSize = 12.sp, color = Color.Gray)
+                            Text("Assessment History", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1F2937))
+                            Text("View your past assessment results", fontSize = 12.sp, color = Color.Gray)
                         }
-                        Icon(imageVector = Icons.Default.ChevronRight, contentDescription = "Go", tint = Color(0xFF9CA3AF), modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.ChevronRight, contentDescription = "Go", tint = Color(0xFF9CA3AF), modifier = Modifier.size(20.dp))
                     }
                 }
 
                 Card(
-                    modifier = Modifier.fillMaxWidth().clickable { navController.navigate("privacy_data") },
+                    modifier = Modifier.fillMaxWidth().clickable { navController.navigate(Screen.PRIVACY_DATA) },
                     shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -660,14 +553,14 @@ fun UnifiedProfileContent(
                                 .background(Brush.linearGradient(colors = listOf(Color(0xFF8B5CF6), Color(0xFFA78BFA)))),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(imageVector = Icons.Default.Lock, contentDescription = "Privacy", tint = Color.White, modifier = Modifier.size(22.dp))
+                            Icon(Icons.Default.Lock, contentDescription = "Privacy", tint = Color.White, modifier = Modifier.size(22.dp))
                         }
                         Spacer(modifier = Modifier.width(14.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(text = "Privacy & Data", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1F2937))
-                            Text(text = "Manage your data and privacy settings", fontSize = 12.sp, color = Color.Gray)
+                            Text("Privacy & Data", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = Color(0xFF1F2937))
+                            Text("Manage your data and privacy settings", fontSize = 12.sp, color = Color.Gray)
                         }
-                        Icon(imageVector = Icons.Default.ChevronRight, contentDescription = "Go", tint = Color(0xFF9CA3AF), modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.ChevronRight, contentDescription = "Go", tint = Color(0xFF9CA3AF), modifier = Modifier.size(20.dp))
                     }
                 }
 
@@ -687,9 +580,9 @@ fun UnifiedProfileContent(
                         contentAlignment = Alignment.Center
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                            Icon(imageVector = Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = Color.White, modifier = Modifier.size(18.dp))
+                            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = Color.White, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = "Logout", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                            Text("Logout", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                         }
                     }
                 }
@@ -704,17 +597,17 @@ fun UnifiedProfileContent(
                             .background(Brush.linearGradient(colors = listOf(Color(0xFF8B5CF6).copy(alpha = 0.2f), Color(0xFFA78BFA).copy(alpha = 0.1f)))),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(imageVector = Icons.Default.Person, contentDescription = "Profile", tint = Color(0xFF8B5CF6), modifier = Modifier.size(50.dp))
+                        Icon(Icons.Default.Person, contentDescription = "Profile", tint = Color(0xFF8B5CF6), modifier = Modifier.size(50.dp))
                     }
-                    Text(text = "Not Logged In", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
-                    Text(text = "Please login to access your profile", fontSize = 14.sp, color = Color(0xFF6B7280))
+                    Text("Not Logged In", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                    Text("Please login to access your profile", fontSize = 14.sp, color = Color(0xFF6B7280))
                     Button(
                         onClick = {
-                            Toast.makeText(
-                                context,
-                                "Please login from Login screen",
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            if (!loginToastShown) {
+                                loginToastShown = true
+                                Toast.makeText(context, "Please login from Login screen", Toast.LENGTH_SHORT).show()
+                                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ loginToastShown = false }, 2000)
+                            }
                         },
                         modifier = Modifier.width(200.dp).height(48.dp),
                         shape = RoundedCornerShape(24.dp),
@@ -727,7 +620,7 @@ fun UnifiedProfileContent(
                                 .background(Brush.linearGradient(colors = listOf(Color(0xFF8B5CF6), Color(0xFFA78BFA))), RoundedCornerShape(24.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = "Go to Login", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
+                            Text("Go to Login", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color.White)
                         }
                     }
                 }

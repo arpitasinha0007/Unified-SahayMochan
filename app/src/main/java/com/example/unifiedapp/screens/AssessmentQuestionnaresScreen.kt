@@ -231,6 +231,7 @@ fun AssessmentQuestionnairesScreen(
     val isFirstQuestion = currentQuestion == 0
     val hasAnsweredCurrent = answers[currentQuestion] != null
 
+    // Updated: saves CSV with correct filename based on assessment type
     fun saveQuestionnaireCsv(context: Context, anonymousId: String, assessmentType: String, answers: Map<Int, Int>): String? {
         try {
             val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
@@ -239,7 +240,8 @@ fun AssessmentQuestionnairesScreen(
             if (!userFolder.exists()) userFolder.mkdirs()
 
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-            val fileName = "${anonymousId}_${assessmentType}_PHQ_${timestamp}.csv"
+            val prefix = if (assessmentType == "depression") "PHQ9" else "GAD7"
+            val fileName = "${anonymousId}_${assessmentType}_${prefix}_${timestamp}.csv"
             val csvFile = File(userFolder, fileName)
 
             val csvContent = StringBuilder()
@@ -284,12 +286,21 @@ fun AssessmentQuestionnairesScreen(
 
         val totalScore = answers.values.sum()
 
-        // Save to preferences
+        // Save to preferences – store both PHQ and GAD scores (the unused one remains 0)
         val prefs = context.getSharedPreferences("assessment_prefs", Context.MODE_PRIVATE)
         prefs.edit().apply {
             putInt("lastAssessmentScore", totalScore)
             putString("lastAssessmentDate", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date()))
             putString("assessment_type", assessmentType)
+
+            // Store the appropriate score separately for upload
+            if (assessmentType == "depression") {
+                putInt("phq_score", totalScore)
+                putInt("gad7_score", 0)   // ensure it's cleared
+            } else {
+                putInt("gad7_score", totalScore)
+                putInt("phq_score", 0)
+            }
 
             // Save AI prediction details
             prediction?.let {
@@ -300,19 +311,21 @@ fun AssessmentQuestionnairesScreen(
             apply()
         }
 
-        // Delay slightly to allow the UI to finish animations and avoid flicker
+        // Delay slightly for data to save
         coroutineScope.launch {
-            delay(500) // Increased from 100ms to give a smoother transition
+            delay(500)
             try {
-                // Navigate without popUpTo to ensure the result screen stays in the stack
                 if (isDepression) {
-                    navController.navigate("mochan_result/$totalScore")
+                    navController.navigate("mochan_result/$totalScore") {
+                        popUpTo("launcher") { inclusive = false }
+                    }
                 } else {
-                    navController.navigate("sahay_result/$totalScore")
+                    navController.navigate("sahay_result/$totalScore") {
+                        popUpTo("launcher") { inclusive = false }
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("AssessmentScreen", "Navigation error: ${e.message}")
-                // Fallback navigation if specific route fails
                 navController.navigate("launcher")
             }
         }
@@ -373,7 +386,7 @@ fun AssessmentQuestionnairesScreen(
             Column(modifier = Modifier.fillMaxSize()) {
                 Spacer(Modifier.height(14.dp))
 
-                // Camera preview card
+                // Camera preview card (unchanged)
                 Box(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                     Card(
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)),

@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.unifiedapp.data.UserSessionManager
+import com.example.unifiedapp.navigation.Screen
 
 @Composable
 fun LauncherScreen(navController: NavController) {
@@ -57,9 +58,9 @@ fun LauncherScreen(navController: NavController) {
                 Card(
                     modifier = Modifier.wrapContentSize().clickable {
                         if (isLoggedIn) {
-                            navController.navigate("dashboard")
+                            navController.navigate(Screen.DASHBOARD)
                         } else {
-                            navController.navigate("auth")
+                            navController.navigate(Screen.AUTH)
                         }
                     },
                     shape = RoundedCornerShape(30.dp),
@@ -116,12 +117,12 @@ fun LauncherScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.height(48.dp))
 
-            // Sahay Button (Anxiety - Green Theme)
+            // Sahay Button
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(120.dp)
-                    .clickable { navController.navigate("sahay_graph") },
+                    .clickable { navController.navigate(Screen.SAHAY_CONSENT) },
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F7F3))
             ) {
@@ -136,52 +137,26 @@ fun LauncherScreen(navController: NavController) {
                             .background(Color(0xFF6B9071)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            Icons.Default.Spa,
-                            contentDescription = "Sahay",
-                            tint = Color.White,
-                            modifier = Modifier.size(32.dp)
-                        )
+                        Icon(Icons.Default.Spa, contentDescription = "Sahay", tint = Color.White, modifier = Modifier.size(32.dp))
                     }
-
                     Spacer(modifier = Modifier.width(16.dp))
-
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "Sahay",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF3E4E42)
-                        )
-                        Text(
-                            "Anxiety Assessment (GAD-7)",
-                            fontSize = 14.sp,
-                            color = Color(0xFF5D6D66)
-                        )
-                        Text(
-                            "7 questions • AI facial analysis • Green theme",
-                            fontSize = 12.sp,
-                            color = Color(0xFF6B9071)
-                        )
+                        Text("Sahay", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF3E4E42))
+                        Text("Anxiety Assessment (GAD-7)", fontSize = 14.sp, color = Color(0xFF5D6D66))
+                        Text("7 questions • AI facial analysis • Green theme", fontSize = 12.sp, color = Color(0xFF6B9071))
                     }
-
-                    Icon(
-                        Icons.Default.ChevronRight,
-                        contentDescription = "Open",
-                        tint = Color(0xFF6B9071),
-                        modifier = Modifier.size(32.dp)
-                    )
+                    Icon(Icons.Default.ChevronRight, contentDescription = "Open", tint = Color(0xFF6B9071), modifier = Modifier.size(32.dp))
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Mochan Button (Depression - Purple Theme)
+            // Mochan Button
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(120.dp)
-                    .clickable { navController.navigate("mochan_graph") },
+                    .clickable { navController.navigate(Screen.MOCHAN_CONSENT) },
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F3FF))
             ) {
@@ -196,51 +171,20 @@ fun LauncherScreen(navController: NavController) {
                             .background(Color(0xFF8B5CF6)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            Icons.Default.Favorite,
-                            contentDescription = "Mochan",
-                            tint = Color.White,
-                            modifier = Modifier.size(32.dp)
-                        )
+                        Icon(Icons.Default.Favorite, contentDescription = "Mochan", tint = Color.White, modifier = Modifier.size(32.dp))
                     }
-
                     Spacer(modifier = Modifier.width(16.dp))
-
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "Mochan",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1F2937)
-                        )
-                        Text(
-                            "Depression Assessment (PHQ-9)",
-                            fontSize = 14.sp,
-                            color = Color(0xFF6B7280)
-                        )
-                        Text(
-                            "9 questions • AI facial analysis • Purple theme",
-                            fontSize = 12.sp,
-                            color = Color(0xFF8B5CF6)
-                        )
+                        Text("Mochan", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
+                        Text("Depression Assessment (PHQ-9)", fontSize = 14.sp, color = Color(0xFF6B7280))
+                        Text("9 questions • AI facial analysis • Purple theme", fontSize = 12.sp, color = Color(0xFF8B5CF6))
                     }
-
-                    Icon(
-                        Icons.Default.ChevronRight,
-                        contentDescription = "Open",
-                        tint = Color(0xFF8B5CF6),
-                        modifier = Modifier.size(32.dp)
-                    )
+                    Icon(Icons.Default.ChevronRight, contentDescription = "Open", tint = Color(0xFF8B5CF6), modifier = Modifier.size(32.dp))
                 }
             }
 
             Spacer(modifier = Modifier.height(48.dp))
-
-            Text(
-                "Your privacy is our priority",
-                fontSize = 12.sp,
-                color = Color(0xFF9CA3AF)
-            )
+            Text("Your privacy is our priority", fontSize = 12.sp, color = Color(0xFF9CA3AF))
         }
     }
 }
