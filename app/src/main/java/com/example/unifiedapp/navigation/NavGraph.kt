@@ -15,32 +15,42 @@ import com.example.unifiedapp.ui.auth.UserProfile
 import com.example.unifiedapp.ui.views.CameraViewModel
 
 object Screen {
+    // Core navigation
     const val LAUNCHER = "launcher"
-    const val DASHBOARD = "dashboard"
-    const val PROFILE = "profile"
-    const val WELLNESS = "wellness"
-    const val PRIVACY_DATA = "privacy_data"
-    const val ASSESSMENT_HISTORY = "assessment_history"
     const val AUTH = "auth"
-    const val LOGIN = "login"
-    const val REGISTER = "register"
-    const val CONSENT = "consent"
-    const val ASSESSMENT = "assessment"
-    const val RESULT = "result/{score}"
-    const val UNDERAGE_RESULT = "underage_result"
+    const val DASHBOARD = "dashboard"
+
+    // Sahay flow
     const val SAHAY_CONSENT = "sahay_consent"
     const val SAHAY_ASSESSMENT = "sahay_assessment"
     const val SAHAY_RESULT = "sahay_result/{score}"
+
+    // Mochan flow
     const val MOCHAN_CONSENT = "mochan_consent"
     const val MOCHAN_ASSESSMENT = "mochan_assessment"
     const val MOCHAN_RESULT = "mochan_result/{score}"
+
+    // Underage result
+    const val UNDERAGE_RESULT = "underage_result"
+
+    // Profile & data
+    const val PROFILE = "profile"
+    const val PRIVACY_DATA = "privacy_data"
+    const val ASSESSMENT_HISTORY = "assessment_history"
+
+    // Wellness tools
+    const val WELLNESS = "wellness"
     const val BREATHING = "breathing"
     const val SOUNDS = "sounds"
     const val JOURNAL = "journal"
     const val MOOD_TRACKER = "mood_tracker"
     const val GROUNDING = "grounding"
+
+    // Popups
     const val PRIVACY_POLICY = "privacy_policy"
     const val TERMS_CONDITIONS = "terms_conditions"
+
+    // ✅ Removed unused: CONSENT, ASSESSMENT, RESULT, LOGIN, REGISTER
 }
 
 @Composable
@@ -59,10 +69,12 @@ fun UnifiedNavGraph(
         navController = navController,
         startDestination = startDestination
     ) {
+        // Launcher – shown only when not logged in
         composable(Screen.LAUNCHER) {
             LauncherScreen(navController = navController)
         }
 
+        // Authentication (login/signup)
         composable(Screen.AUTH) {
             UnifiedAuthScreen(
                 navController = navController,
@@ -74,6 +86,7 @@ fun UnifiedNavGraph(
             )
         }
 
+        // Main dashboard with bottom bar
         composable(Screen.DASHBOARD) {
             DashboardScreen(
                 navController = navController,
@@ -81,10 +94,10 @@ fun UnifiedNavGraph(
             )
         }
 
-        // Sahay Assessment Flow
+        // ========== SAHAY (Anxiety) Flow ==========
         composable(Screen.SAHAY_CONSENT) {
             ConsentScreen(
-                navController = navController,   // ✅ FIXED
+                navController = navController,
                 onAccept = {
                     navController.navigate(Screen.SAHAY_ASSESSMENT) {
                         popUpTo(Screen.SAHAY_CONSENT) { inclusive = true }
@@ -112,10 +125,10 @@ fun UnifiedNavGraph(
             )
         }
 
-        // Mochan Assessment Flow
+        // ========== MOCHAN (Depression) Flow ==========
         composable(Screen.MOCHAN_CONSENT) {
             ConsentScreen(
-                navController = navController,   // ✅ FIXED
+                navController = navController,
                 onAccept = {
                     navController.navigate(Screen.MOCHAN_ASSESSMENT) {
                         popUpTo(Screen.MOCHAN_CONSENT) { inclusive = true }
@@ -143,7 +156,7 @@ fun UnifiedNavGraph(
             )
         }
 
-        // Underage Result Screen
+        // ========== Underage Result ==========
         composable(
             route = Screen.UNDERAGE_RESULT,
             arguments = listOf(
@@ -161,7 +174,7 @@ fun UnifiedNavGraph(
             )
         }
 
-        // Profile & Privacy
+        // ========== Profile & Data Management ==========
         composable(Screen.PROFILE) {
             ProfileScreen(
                 navController = navController,
@@ -175,7 +188,7 @@ fun UnifiedNavGraph(
             AssessmentHistoryScreen(navController = navController)
         }
 
-        // Wellness Tools
+        // ========== Wellness Tools ==========
         composable(Screen.WELLNESS) {
             WellnessScreen(navController = navController)
         }
@@ -195,7 +208,7 @@ fun UnifiedNavGraph(
             GroundingScreen(onBack = { navController.popBackStack() })
         }
 
-        // Popups
+        // ========== Legal Popups ==========
         composable(Screen.PRIVACY_POLICY) {
             PrivacyPolicyPopup(onDismiss = { navController.popBackStack() })
         }

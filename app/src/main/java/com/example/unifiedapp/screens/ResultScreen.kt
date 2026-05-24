@@ -1,6 +1,7 @@
 package com.example.unifiedapp.screens
 
 import android.content.Context
+import com.example.unifiedapp.navigation.Screen
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -1913,7 +1914,12 @@ fun AssessmentHeader(
             .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 10.dp)
     ) {
         TextButton(
-            onClick = { navController.popBackStack() },
+            onClick = {
+                // Navigate directly to Dashboard and clear back stack
+                navController.navigate(Screen.DASHBOARD) {
+                    popUpTo(Screen.LAUNCHER) { inclusive = true }
+                }
+            },
             colors = ButtonDefaults.textButtonColors(contentColor = Color.Gray),
             contentPadding = PaddingValues(0.dp)
         ) {
@@ -1966,7 +1972,6 @@ fun AssessmentHeader(
         }
     }
 }
-
 // ============ SETU PROMO CARD ============
 
 @Composable

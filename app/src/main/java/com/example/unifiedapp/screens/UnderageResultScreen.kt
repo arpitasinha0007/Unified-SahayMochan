@@ -30,16 +30,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.navigation.NavController
+import com.example.unifiedapp.navigation.Screen
 import com.example.unifiedapp.utils.NotificationHelper
 import com.example.unifiedapp.utils.UserSessionHelper
 import com.example.unifiedapp.utils.UploadHelper
 import kotlinx.coroutines.launch
 
-// ✅ IMPORT the existing UploadStatus from ResultScreen
-// If UploadStatus is not accessible, we'll define it here with a different name
-// or just use local state
-
-// ============ MAIN UNDERAGE RESULT SCREEN ============
 @Composable
 fun UnderageResultScreen(
     navController: NavController,
@@ -352,9 +348,13 @@ fun UnderageResultScreen(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // Return Home button
+                // ✅ Return Home button - FIXED: Navigate directly to Dashboard and clear back stack
                 Button(
-                    onClick = onFinish,
+                    onClick = {
+                        navController.navigate(Screen.DASHBOARD) {
+                            popUpTo(Screen.LAUNCHER) { inclusive = true }
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)

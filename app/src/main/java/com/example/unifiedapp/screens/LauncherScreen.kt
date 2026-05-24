@@ -27,8 +27,15 @@ import com.example.unifiedapp.navigation.Screen
 fun LauncherScreen(navController: NavController) {
     val context = LocalContext.current
     val sessionManager = remember { UserSessionManager(context) }
-    val user = sessionManager.getUser()
-    val isLoggedIn = user?.isLoggedIn == true
+    val isLoggedIn = sessionManager.isLoggedIn()
+
+    // If already logged in, redirect directly to Dashboard
+    if (isLoggedIn) {
+        navController.navigate(Screen.DASHBOARD) {
+            popUpTo(Screen.LAUNCHER) { inclusive = true }
+        }
+        return
+    }
 
     Box(
         modifier = Modifier
@@ -50,43 +57,6 @@ fun LauncherScreen(navController: NavController) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Profile/Login Button at Top Right
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.End
-            ) {
-                Card(
-                    modifier = Modifier.wrapContentSize().clickable {
-                        if (isLoggedIn) {
-                            navController.navigate(Screen.DASHBOARD)
-                        } else {
-                            navController.navigate(Screen.AUTH)
-                        }
-                    },
-                    shape = RoundedCornerShape(30.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.9f))
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            if (isLoggedIn) Icons.Default.Person else Icons.Default.Login,
-                            contentDescription = if (isLoggedIn) "Profile" else "Login",
-                            tint = Color(0xFF8B5CF6),
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (isLoggedIn) user?.name?.take(15) ?: "Profile" else "Login",
-                            fontSize = 13.sp,
-                            color = Color(0xFF8B5CF6),
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            }
-
             // App Logo
             Box(
                 modifier = Modifier
