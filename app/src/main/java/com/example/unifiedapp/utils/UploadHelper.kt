@@ -17,20 +17,6 @@ import com.example.unifiedapp.ui.views.AssessmentData
 object UploadHelper {
     private const val TAG = "UploadHelper"
 
-    /**
-     * Upload assessment data (video, AU CSV, and questionnaire CSV) to the server.
-     *
-     * @param context        Application context
-     * @param coroutineScope Coroutine scope for background tasks
-     * @param anonymousId    User's anonymous ID
-     * @param age            User's age
-     * @param aiRawScore     AI raw score (optional)
-     * @param email          User's email (optional)
-     * @param registrationId User's registration ID (must be non‑blank; fallback will be used if null)
-     * @param onProgress     Progress callback (progress percent, message)
-     * @param onSuccess      Success callback
-     * @param onError        Error callback
-     */
     fun uploadAssessment(
         context: Context,
         coroutineScope: CoroutineScope,
@@ -46,31 +32,47 @@ object UploadHelper {
         Log.d(TAG, "========== UPLOAD HELPER STARTED ==========")
 
         val filePrefs = context.getSharedPreferences("file_paths", Context.MODE_PRIVATE)
-        var videoPath = filePrefs.getString("video_path", null)
-        var auCsvPath = filePrefs.getString("au_csv_path", null)
-        var phq9CsvPath = filePrefs.getString("phq9_csv_path", null)
+        val prefs = context.getSharedPreferences("assessment_prefs", Context.MODE_PRIVATE)
 
-        Log.d(TAG, "Video path: $videoPath")
-        Log.d(TAG, "AU CSV path: $auCsvPath")
-        Log.d(TAG, "PHQ‑9 CSV path: $phq9CsvPath")
+        val assessmentType = prefs.getString("assessment_type", "depression") ?: "depression"
+        val gad7Score = prefs.getInt("gad7_score", 0)
+        val phqScore = prefs.getInt("phq_score", 0)
+
+        Log.d(TAG, "Assessment type: $assessmentType, PHQ score: $phqScore, GAD score: $gad7Score")
+
+        // Get existing paths
+        val videoPath = filePrefs.getString("video_path", null)
+        val auCsvPath = filePrefs.getString("au_csv_path", null)
+        var phq9CsvPath = filePrefs.getString("phq9_csv_path", null)
 
         var videoFile = videoPath?.let { File(it) }
         var auCsvFile = auCsvPath?.let { File(it) }
         var phq9CsvFile = phq9CsvPath?.let { File(it) }
 
-        // ✅ Ensure questionnaire CSV exists (fallback)
-        val prefs = context.getSharedPreferences("assessment_prefs", Context.MODE_PRIVATE)
-        val assessmentType = prefs.getString("assessment_type", "depression") ?: "depression"
-        val gad7Score = prefs.getInt("gad7_score", 0)
-        val phqScore = prefs.getInt("phq_score", 0)
-
-        if (phq9CsvFile == null || !phq9CsvFile.exists()) {
-            val assessmentScore = if (assessmentType == "depression") phqScore else gad7Score
-            val ensuredCsv = ensureCsvFileExists(context, anonymousId, assessmentType, assessmentScore)
-            if (ensuredCsv != null) {
-                phq9CsvFile = ensuredCsv
-                phq9CsvPath = ensuredCsv.absolutePath
-                Log.d(TAG, "Re-created missing CSV at: ${ensuredCsv.absolutePath}")
+        // ✅ FOR DEPRESSION: ALWAYS CREATE A FRESH CSV WITH THE CORRECT SCORE
+        if (assessmentType == "depression") {
+            Log.d(TAG, "Depression assessment – creating fresh PHQ‑9 CSV with score $phqScore")
+            val freshCsv = createCsvFile(context, anonymousId, "depression", phqScore)
+            if (freshCsv != null) {
+                phq9CsvFile = freshCsv
+                phq9CsvPath = freshCsv.absolutePath
+                // Update shared preferences so future uploads can use it
+                filePrefs.edit().putString("phq9_csv_path", phq9CsvPath).apply()
+                Log.d(TAG, "Fresh PHQ‑9 CSV created: ${freshCsv.absolutePath}, size=${freshCsv.length()}")
+            } else {
+                Log.e(TAG, "Failed to create fresh PHQ‑9 CSV")
+            }
+        } else if (assessmentType == "anxiety") {
+            // For anxiety, create a GAD‑7 CSV if missing
+            if (phq9CsvFile == null || !phq9CsvFile.exists()) {
+                Log.d(TAG, "Anxiety assessment – creating GAD‑7 CSV with score $gad7Score")
+                val freshCsv = createCsvFile(context, anonymousId, "anxiety", gad7Score)
+                if (freshCsv != null) {
+                    phq9CsvFile = freshCsv
+                    phq9CsvPath = freshCsv.absolutePath
+                    filePrefs.edit().putString("phq9_csv_path", phq9CsvPath).apply()
+                    Log.d(TAG, "Fresh GAD‑7 CSV created: ${freshCsv.absolutePath}")
+                }
             }
         }
 
@@ -79,37 +81,32 @@ object UploadHelper {
             return
         }
 
-        // ✅ Ensure registration_id is never blank
         val finalRegistrationId = when {
             !registrationId.isNullOrBlank() -> registrationId
             else -> {
                 val userPrefs = context.getSharedPreferences("user_session", Context.MODE_PRIVATE)
-                val savedRegId = userPrefs.getString("registration_id", null)
-                if (!savedRegId.isNullOrBlank()) savedRegId else anonymousId
+                userPrefs.getString("registration_id", null) ?: anonymousId
             }
         }
 
-        Log.d(TAG, "All required files present:")
-        Log.d(TAG, "  - Video: ${videoFile.length()} bytes")
-        Log.d(TAG, "  - AU CSV: ${auCsvFile?.length() ?: 0} bytes")
-        Log.d(TAG, "  - PHQ‑9 CSV: ${phq9CsvFile?.length() ?: 0} bytes")
-        Log.d(TAG, "  - Registration ID: $finalRegistrationId")
-        Log.d(TAG, "  - Assessment type: $assessmentType")
-        Log.d(TAG, "  - GAD‑7 score: $gad7Score")
-        Log.d(TAG, "  - PHQ‑9 score: $phqScore")
+        Log.d(TAG, "Final file list:")
+        Log.d(TAG, "  Video: ${videoFile.absolutePath} (${videoFile.length()} bytes)")
+        Log.d(TAG, "  AU CSV: ${auCsvFile?.absolutePath} (${auCsvFile?.length() ?: 0} bytes)")
+        Log.d(TAG, "  Questionnaire CSV: ${phq9CsvFile?.absolutePath} (${phq9CsvFile?.length() ?: 0} bytes)")
 
         coroutineScope.launch {
             try {
                 val serverClient = SimpleServerClient(context)
 
-                val assessmentData = AssessmentData(
+                // Build AssessmentData for the upload
+                var assessmentData = AssessmentData(
                     anonymousId = anonymousId,
                     age = age,
                     assessmentType = assessmentType,
                     videoFile = videoFile,
                     auCsvFile = auCsvFile,
-                    gad7CsvFile = if (assessmentType == "anxiety") phq9CsvFile else null,
                     phq9CsvFile = if (assessmentType == "depression") phq9CsvFile else null,
+                    gad7CsvFile = if (assessmentType == "anxiety") phq9CsvFile else null,
                     email = email ?: "",
                     registrationId = finalRegistrationId,
                     gad7Score = gad7Score,
@@ -118,24 +115,32 @@ object UploadHelper {
                     questionnaireScore = if (assessmentType == "depression") phqScore else gad7Score
                 )
 
-                withContext(Dispatchers.IO) {
-                    serverClient.uploadAnonymousAssessment(
-                        assessmentData,
-                        object : SimpleServerClient.UploadCallback {
-                            override fun onProgress(progress: Int, message: String) {
-                                onProgress(progress, message)
-                            }
-
-                            override fun onSuccess(message: String) {
-                                onSuccess(message)
-                            }
-
-                            override fun onError(error: String) {
-                                onError(error)
-                            }
-                        }
-                    )
+                // ✅ EMERGENCY SAFETY NET: if depression and still no CSV, create one on the spot
+                if (assessmentType == "depression" && assessmentData.phq9CsvFile == null) {
+                    Log.e(TAG, "EMERGENCY: phq9CsvFile is null right before upload! Creating one now.")
+                    val emergencyCsv = createCsvFile(context, anonymousId, "depression", phqScore)
+                    if (emergencyCsv != null) {
+                        assessmentData = assessmentData.copy(phq9CsvFile = emergencyCsv)
+                        Log.d(TAG, "Emergency CSV attached: ${emergencyCsv.absolutePath}")
+                    } else {
+                        Log.e(TAG, "Failed to create emergency CSV – upload will proceed without it.")
+                    }
                 }
+
+                serverClient.uploadAnonymousAssessment(
+                    assessmentData,
+                    object : SimpleServerClient.UploadCallback {
+                        override fun onProgress(progress: Int, message: String) {
+                            onProgress(progress, message)
+                        }
+                        override fun onSuccess(message: String) {
+                            onSuccess(message)
+                        }
+                        override fun onError(error: String) {
+                            onError(error)
+                        }
+                    }
+                )
             } catch (e: Exception) {
                 Log.e(TAG, "Exception during upload: ${e.message}", e)
                 onError("Upload failed: ${e.message}")
@@ -143,16 +148,13 @@ object UploadHelper {
         }
     }
 
-    /**
-     * Fallback: Re‑create the questionnaire CSV if it is missing.
-     */
-    private fun ensureCsvFileExists(
+    private fun createCsvFile(
         context: Context,
         anonymousId: String,
         assessmentType: String,
         score: Int
     ): File? {
-        try {
+        return try {
             val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             val appFolder = File(downloadsDir, "unifiedapp")
             val userFolder = File(appFolder, anonymousId)
@@ -163,17 +165,18 @@ object UploadHelper {
             val fileName = "${anonymousId}_${assessmentType}_${prefix}_${timestamp}.csv"
             val csvFile = File(userFolder, fileName)
 
-            val csvContent = "question_index,question_text,answer_score\n0,\"Score\",$score"
+            val csvContent = buildString {
+                appendLine("question_index,question_text,answer_score")
+                appendLine("0,\"Total Score\",$score")
+                appendLine("1,\"Assessment completed\",1")
+            }
             csvFile.writeText(csvContent)
 
-            val prefs = context.getSharedPreferences("file_paths", Context.MODE_PRIVATE)
-            prefs.edit().putString("phq9_csv_path", csvFile.absolutePath).apply()
-
-            Log.d(TAG, "Fallback CSV created at: ${csvFile.absolutePath}")
-            return csvFile
+            Log.d(TAG, "CSV file created: ${csvFile.absolutePath}, size=${csvFile.length()}, score=$score")
+            csvFile
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to create fallback CSV: ${e.message}")
-            return null
+            Log.e(TAG, "Failed to create CSV file: ${e.message}")
+            null
         }
     }
 }

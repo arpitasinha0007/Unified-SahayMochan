@@ -63,8 +63,9 @@ private val LocalSevereLightColor = Color(0xFFFFF1F2)
 // ============ DATA CLASS ============
 data class AssessmentHistoryItem(
     val id: Int,
-    val assessmentType: String,
-    val phqScore: Int?,
+    val assessmentType: String,      // "Depression (PHQ-9)" or "Anxiety (GAD-7)"
+    val phqScore: Int?,              // PHQ‑9 score (for depression)
+    val gad7Score: Int?,             // GAD‑7 score (for anxiety)
     val phq8Score: Int?,
     val aiScore: Int?,
     val aiConfidence: Float?,
@@ -200,17 +201,47 @@ fun AssessmentHistoryScreen(
                             val createdAt = item.getString("created_at")
                             val videoCount = item.optInt("video_count", 0)
 
-                            val phqScore = if (item.has("phq_score") && !item.isNull("phq_score")) {
-                                item.getDouble("phq_score").toInt()
+                            // Try to get assessment type from API (if available)
+                            val assessmentTypeFromApi = if (item.has("assessment_type") && !item.isNull("assessment_type")) {
+                                item.getString("assessment_type")
                             } else null
 
-                            val assessmentType = if (phqScore != null) "Depression (PHQ-9)" else "Mental Health Assessment"
+                            // PHQ‑9 score (depression)
+                            val phqScore = if (item.has("phq_score") && !item.isNull("phq_score")) {
+                                item.getDouble("phq_score").toInt()
+                            } else if (item.has("phq9_score") && !item.isNull("phq9_score")) {
+                                item.getDouble("phq9_score").toInt()
+                            } else null
+
+                            // GAD‑7 score (anxiety)
+                            val gad7Score = if (item.has("gad7_score") && !item.isNull("gad7_score")) {
+                                item.getDouble("gad7_score").toInt()
+                            } else if (item.has("gad_score") && !item.isNull("gad_score")) {
+                                item.getDouble("gad_score").toInt()
+                            } else null
+
+                            // Determine the assessment type display string
+                            val assessmentType = when {
+                                assessmentTypeFromApi != null -> {
+                                    when (assessmentTypeFromApi.lowercase()) {
+                                        "depression" -> "Depression (PHQ-9)"
+                                        "anxiety" -> "Anxiety (GAD-7)"
+                                        else -> "Mental Health Assessment"
+                                    }
+                                }
+                                phqScore != null -> "Depression (PHQ-9)"
+                                gad7Score != null -> "Anxiety (GAD-7)"
+                                else -> "Mental Health Assessment"
+                            }
+
+                            Log.d("AssessmentHistory", "Assessment $id: type=$assessmentType, phq=$phqScore, gad=$gad7Score")
 
                             result.add(
                                 AssessmentHistoryItem(
                                     id = id,
                                     assessmentType = assessmentType,
                                     phqScore = phqScore,
+                                    gad7Score = gad7Score,
                                     phq8Score = null,
                                     aiScore = null,
                                     aiConfidence = null,
@@ -610,11 +641,34 @@ fun AssessmentHistoryCardLocal(
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val phqScore = assessment.phqScore ?: 0
+    // Determine which score to use for severity
+    val score = assessment.phqScore ?: assessment.gad7Score ?: 0
+    val isDepression = assessment.assessmentType.contains("Depression", ignoreCase = true)
+    val isAnxiety = assessment.assessmentType.contains("Anxiety", ignoreCase = true)
+
     val (severityText, severityColor, severityLightColor) = when {
-        phqScore <= 9 -> Triple("Mild", LocalMildColor, LocalMildLightColor)
-        phqScore <= 18 -> Triple("Moderate", LocalModerateColor, LocalModerateLightColor)
-        else -> Triple("Severe", LocalSevereColor, LocalSevereLightColor)
+        isDepression -> {
+            when {
+                score <= 9 -> Triple("Mild", LocalMildColor, LocalMildLightColor)
+                score <= 18 -> Triple("Moderate", LocalModerateColor, LocalModerateLightColor)
+                else -> Triple("Severe", LocalSevereColor, LocalSevereLightColor)
+            }
+        }
+        isAnxiety -> {
+            when {
+                score <= 7 -> Triple("Mild", LocalMildColor, LocalMildLightColor)
+                score <= 14 -> Triple("Moderate", LocalModerateColor, LocalModerateLightColor)
+                else -> Triple("Severe", LocalSevereColor, LocalSevereLightColor)
+            }
+        }
+        else -> Triple("Unknown", LocalColorTextSecondary, LocalSoftPurpleBg)
+    }
+
+    // Determine the label (PHQ-9 or GAD-7)
+    val scoreLabel = when {
+        isDepression -> "PHQ-9"
+        isAnxiety -> "GAD-7"
+        else -> "Score"
     }
 
     Card(
@@ -643,7 +697,7 @@ fun AssessmentHistoryCardLocal(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Surface(shape = RoundedCornerShape(12.dp), color = severityColor.copy(alpha = 0.1f), border = BorderStroke(1.dp, severityColor.copy(alpha = 0.3f))) {
-                        Text("PHQ-9: $severityText", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = severityColor, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+                        Text("$scoreLabel: $severityText", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = severityColor, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
                     }
                     if (assessment.videoCount > 0) {
                         Spacer(modifier = Modifier.height(4.dp))
@@ -661,7 +715,10 @@ fun AssessmentHistoryCardLocal(
                 Divider(color = LocalColorBorder, thickness = 1.dp, modifier = Modifier.padding(horizontal = 16.dp))
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                     Text("Assessment Details", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = LocalColorTextPrimary, modifier = Modifier.padding(bottom = 8.dp))
-                    DetailRowLocal(label = "PHQ-9 Severity:", value = severityText, color = severityColor)
+                    DetailRowLocal(label = "$scoreLabel Severity:", value = severityText, color = severityColor)
+                    if (score > 0) {
+                        DetailRowLocal(label = "$scoreLabel Score:", value = "$score/${if (isDepression) 27 else 21}", color = severityColor)
+                    }
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(
                         onClick = onDeleteClick,
