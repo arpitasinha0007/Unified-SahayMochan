@@ -1,12 +1,18 @@
 package com.example.unifiedapp.utils
 
 import android.content.Context
+import android.os.Environment
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
+
+import com.example.unifiedapp.ui.remote.SimpleServerClient
+import com.example.unifiedapp.ui.views.AssessmentData
 
 object UploadHelper {
     private const val TAG = "UploadHelper"
@@ -40,17 +46,33 @@ object UploadHelper {
         Log.d(TAG, "========== UPLOAD HELPER STARTED ==========")
 
         val filePrefs = context.getSharedPreferences("file_paths", Context.MODE_PRIVATE)
-        val videoPath = filePrefs.getString("video_path", null)
-        val auCsvPath = filePrefs.getString("au_csv_path", null)
-        val phq9CsvPath = filePrefs.getString("phq9_csv_path", null)
+        var videoPath = filePrefs.getString("video_path", null)
+        var auCsvPath = filePrefs.getString("au_csv_path", null)
+        var phq9CsvPath = filePrefs.getString("phq9_csv_path", null)
 
         Log.d(TAG, "Video path: $videoPath")
         Log.d(TAG, "AU CSV path: $auCsvPath")
         Log.d(TAG, "PHQ‑9 CSV path: $phq9CsvPath")
 
-        val videoFile = videoPath?.let { File(it) }
-        val auCsvFile = auCsvPath?.let { File(it) }
-        val phq9CsvFile = phq9CsvPath?.let { File(it) }
+        var videoFile = videoPath?.let { File(it) }
+        var auCsvFile = auCsvPath?.let { File(it) }
+        var phq9CsvFile = phq9CsvPath?.let { File(it) }
+
+        // ✅ Ensure questionnaire CSV exists (fallback)
+        val prefs = context.getSharedPreferences("assessment_prefs", Context.MODE_PRIVATE)
+        val assessmentType = prefs.getString("assessment_type", "depression") ?: "depression"
+        val gad7Score = prefs.getInt("gad7_score", 0)
+        val phqScore = prefs.getInt("phq_score", 0)
+
+        if (phq9CsvFile == null || !phq9CsvFile.exists()) {
+            val assessmentScore = if (assessmentType == "depression") phqScore else gad7Score
+            val ensuredCsv = ensureCsvFileExists(context, anonymousId, assessmentType, assessmentScore)
+            if (ensuredCsv != null) {
+                phq9CsvFile = ensuredCsv
+                phq9CsvPath = ensuredCsv.absolutePath
+                Log.d(TAG, "Re-created missing CSV at: ${ensuredCsv.absolutePath}")
+            }
+        }
 
         if (videoFile == null || !videoFile.exists()) {
             onError("Video file not found. Please retake the assessment.")
@@ -67,12 +89,6 @@ object UploadHelper {
             }
         }
 
-        // ✅ Get assessment type and scores from preferences (set during assessment)
-        val prefs = context.getSharedPreferences("assessment_prefs", Context.MODE_PRIVATE)
-        val assessmentType = prefs.getString("assessment_type", "depression") ?: "depression"
-        val gad7Score = prefs.getInt("gad7_score", 0)        // For anxiety (GAD‑7)
-        val phqScore = prefs.getInt("phq_score", 0)          // For depression (PHQ‑9)
-
         Log.d(TAG, "All required files present:")
         Log.d(TAG, "  - Video: ${videoFile.length()} bytes")
         Log.d(TAG, "  - AU CSV: ${auCsvFile?.length() ?: 0} bytes")
@@ -86,19 +102,20 @@ object UploadHelper {
             try {
                 val serverClient = SimpleServerClient(context)
 
-                // Data class expected by SimpleServerClient.uploadAnonymousAssessment
-                val assessmentData = SimpleServerClient.AssessmentData(
+                val assessmentData = AssessmentData(
                     anonymousId = anonymousId,
                     age = age,
                     assessmentType = assessmentType,
                     videoFile = videoFile,
                     auCsvFile = auCsvFile,
-                    phq9CsvFile = phq9CsvFile,      // This will be mapped to "phq_csv" in the request
-                    aiRawScore = aiRawScore,
-                    email = email,
+                    gad7CsvFile = if (assessmentType == "anxiety") phq9CsvFile else null,
+                    phq9CsvFile = if (assessmentType == "depression") phq9CsvFile else null,
+                    email = email ?: "",
                     registrationId = finalRegistrationId,
-                    gad7Score = gad7Score,           // Added for server
-                    phqScore = phqScore              // Added for server
+                    gad7Score = gad7Score,
+                    phqScore = phqScore,
+                    aiRawScore = aiRawScore,
+                    questionnaireScore = if (assessmentType == "depression") phqScore else gad7Score
                 )
 
                 withContext(Dispatchers.IO) {
@@ -123,6 +140,40 @@ object UploadHelper {
                 Log.e(TAG, "Exception during upload: ${e.message}", e)
                 onError("Upload failed: ${e.message}")
             }
+        }
+    }
+
+    /**
+     * Fallback: Re‑create the questionnaire CSV if it is missing.
+     */
+    private fun ensureCsvFileExists(
+        context: Context,
+        anonymousId: String,
+        assessmentType: String,
+        score: Int
+    ): File? {
+        try {
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            val appFolder = File(downloadsDir, "unifiedapp")
+            val userFolder = File(appFolder, anonymousId)
+            if (!userFolder.exists()) userFolder.mkdirs()
+
+            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+            val prefix = if (assessmentType == "depression") "PHQ9" else "GAD7"
+            val fileName = "${anonymousId}_${assessmentType}_${prefix}_${timestamp}.csv"
+            val csvFile = File(userFolder, fileName)
+
+            val csvContent = "question_index,question_text,answer_score\n0,\"Score\",$score"
+            csvFile.writeText(csvContent)
+
+            val prefs = context.getSharedPreferences("file_paths", Context.MODE_PRIVATE)
+            prefs.edit().putString("phq9_csv_path", csvFile.absolutePath).apply()
+
+            Log.d(TAG, "Fallback CSV created at: ${csvFile.absolutePath}")
+            return csvFile
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create fallback CSV: ${e.message}")
+            return null
         }
     }
 }

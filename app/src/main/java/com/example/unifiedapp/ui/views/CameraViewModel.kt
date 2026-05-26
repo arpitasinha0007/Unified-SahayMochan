@@ -212,13 +212,13 @@ class CameraViewModel : ViewModel() {
             Log.w(TAG, "Face detection not available - allowing assessment to continue")
             return true
         }
-        
+
         val frames = _frameData.value.size
         if (frames < MIN_FRAMES_FOR_ANALYSIS) {
             Log.w(TAG, "Low frame count: $frames < $MIN_FRAMES_FOR_ANALYSIS. Allowing anyway if > 0")
             return frames > 0
         }
-        
+
         return true // Validation passed
     }
 
@@ -296,6 +296,9 @@ class CameraViewModel : ViewModel() {
             return null
         }
     }
+
+    // ✅ Public method to retrieve the last recorded video path
+    fun getLastVideoPath(): String? = lastVideoPath
 
     fun reset() {
         _isRecording.value = false
@@ -475,7 +478,6 @@ class CameraViewModel : ViewModel() {
     // ========== AU CALCULATION FUNCTIONS (unchanged, keep existing) ==========
     private fun calculateAUs(landmarks: List<NormalizedLandmark>): Map<String, Float> {
         // ... keep the existing implementation (too long, unchanged) ...
-        // (I will not duplicate the full implementation here for brevity, but you must keep it)
         // For the complete file, use your original calculateAUs code.
         return keyAUs.associateWith { 0.0f } // placeholder
     }

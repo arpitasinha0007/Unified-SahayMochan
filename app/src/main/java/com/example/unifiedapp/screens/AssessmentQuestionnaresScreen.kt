@@ -275,6 +275,16 @@ fun AssessmentQuestionnairesScreen(
         isCompleting = true
         cameraViewModel.stopRecording()
 
+        // ✅ Save video path after recording stops
+        val videoPath = cameraViewModel.getLastVideoPath()
+        if (videoPath != null) {
+            context.getSharedPreferences("file_paths", Context.MODE_PRIVATE).edit()
+                .putString("video_path", videoPath).apply()
+            Log.d("AssessmentScreen", "Video path saved: $videoPath")
+        } else {
+            Log.e("AssessmentScreen", "Video path is null - recording may have failed")
+        }
+
         // Get AI Prediction
         val prediction = cameraViewModel.getPrediction()
 

@@ -1,5 +1,6 @@
 package com.example.unifiedapp.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -29,7 +30,7 @@ fun LauncherScreen(navController: NavController) {
     val sessionManager = remember { UserSessionManager(context) }
     val isLoggedIn = sessionManager.isLoggedIn()
 
-    // If already logged in, redirect directly to Dashboard
+    // If already logged in, go directly to dashboard
     if (isLoggedIn) {
         navController.navigate(Screen.DASHBOARD) {
             popUpTo(Screen.LAUNCHER) { inclusive = true }
@@ -57,6 +58,20 @@ fun LauncherScreen(navController: NavController) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            // Login Button at Top
+            Button(
+                onClick = { navController.navigate(Screen.AUTH) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF8B5CF6))
+            ) {
+                Text("Login / Sign Up", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             // App Logo
             Box(
                 modifier = Modifier
@@ -79,20 +94,23 @@ fun LauncherScreen(navController: NavController) {
             )
 
             Text(
-                text = "Choose your assessment",
-                fontSize = 16.sp,
+                text = "Login to continue or choose an assessment",
+                fontSize = 14.sp,
                 color = Color(0xFF6B7280),
                 modifier = Modifier.padding(top = 8.dp)
             )
 
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             // Sahay Button
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(120.dp)
-                    .clickable { navController.navigate(Screen.SAHAY_CONSENT) },
+                    .clickable {
+                        Toast.makeText(context, "Please login first to take an assessment", Toast.LENGTH_SHORT).show()
+                        navController.navigate(Screen.AUTH)
+                    },
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F7F3))
             ) {
@@ -126,7 +144,10 @@ fun LauncherScreen(navController: NavController) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(120.dp)
-                    .clickable { navController.navigate(Screen.MOCHAN_CONSENT) },
+                    .clickable {
+                        Toast.makeText(context, "Please login first to take an assessment", Toast.LENGTH_SHORT).show()
+                        navController.navigate(Screen.AUTH)
+                    },
                 shape = RoundedCornerShape(24.dp),
                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F3FF))
             ) {

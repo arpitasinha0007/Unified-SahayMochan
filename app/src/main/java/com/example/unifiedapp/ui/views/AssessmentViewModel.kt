@@ -53,7 +53,10 @@ data class AssessmentData(
     val videoFile: File? = null,
     val auCsvFile: File? = null,
     val gad7CsvFile: File? = null,
+    val phq9CsvFile: File? = null,
     val gad7Score: Int = 0,
+    val phqScore: Int = 0,
+    val aiRawScore: Float? = null,
     val questionnaireScore: Int = 0
 )
 
