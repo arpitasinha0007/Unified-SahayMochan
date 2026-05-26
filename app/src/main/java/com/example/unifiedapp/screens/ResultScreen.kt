@@ -151,8 +151,13 @@ fun ResultScreen(
     val userGender = session.gender
     val registrationId = session.registrationId
 
-    Log.d("RESULT_SCREEN", "User session - Name: $userName, Reg ID: $registrationId")
+    Log.d("RESULT_SCREEN", "User session - Name: $userName, Age: $userAge, Reg ID: $registrationId")
 
+    // ───────────────────────────────────────────────────────────────────────────
+    // UNDERAGE REDIRECT REMOVED – now all users see the full result screen.
+    // If you need underage handling, uncomment the code below.
+    // ───────────────────────────────────────────────────────────────────────────
+    /*
     val isUnderage = userAge < 18
     var hasRedirected by remember { mutableStateOf(false) }
 
@@ -178,6 +183,7 @@ fun ResultScreen(
         }
         return
     }
+    */
 
     // Retrieve AI prediction data
     val prefs = context.getSharedPreferences("assessment_prefs", Context.MODE_PRIVATE)
