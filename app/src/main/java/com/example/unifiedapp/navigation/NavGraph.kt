@@ -56,7 +56,7 @@ object Screen {
 @Composable
 fun UnifiedNavGraph(
     navController: NavHostController,
-    startDestination: String = Screen.LAUNCHER
+    startDestination: String = Screen.AUTH   // ← changed from LAUNCHER to AUTH
 ) {
     val context = LocalContext.current
 
@@ -69,7 +69,7 @@ fun UnifiedNavGraph(
         navController = navController,
         startDestination = startDestination
     ) {
-        // Launcher – shown only when not logged in
+        // Launcher – still kept but will not be shown unless navigated manually (optional)
         composable(Screen.LAUNCHER) {
             LauncherScreen(navController = navController)
         }
@@ -80,7 +80,7 @@ fun UnifiedNavGraph(
                 navController = navController,
                 onLoginSuccess = { userProfile: UserProfile ->
                     navController.navigate(Screen.DASHBOARD) {
-                        popUpTo(Screen.LAUNCHER) { inclusive = true }
+                        popUpTo(Screen.AUTH) { inclusive = true }   // ← changed from LAUNCHER to AUTH
                     }
                 }
             )

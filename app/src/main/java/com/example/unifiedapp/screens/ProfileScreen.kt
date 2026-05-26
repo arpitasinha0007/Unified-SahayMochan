@@ -59,11 +59,10 @@ import kotlinx.coroutines.delay
 // ✅ Import ONLY from theme - remove local definitions
 import com.example.unifiedapp.theme.*
 import androidx.compose.foundation.shape.CircleShape
-// Do NOT redefine gradients here - use the imported ones
+import com.example.unifiedapp.navigation.Screen   // IMPORTANT: add this import
 
-// ============ COLOR DEFINITIONS (Only use theme imports, no local redefinitions) ============
-// All colors and gradients are imported from com.example.unifiedapp..theme
-// Do NOT redefine PurplePrimary, GradientPurple, etc. here
+// ============ COLOR DEFINITIONS ============
+// All colors and gradients are imported from theme – do not redefine here
 
 // ============ DATA CLASSES ============
 
@@ -166,7 +165,6 @@ fun validateConfirmPassword(password: String, confirmPassword: String): String? 
         else -> null
     }
 }
-
 
 // ==========================================
 // PROFILE SCREEN (Display user info)
@@ -307,13 +305,13 @@ fun ProfileScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Logout Button
+                // ✅ Logout Button – navigates directly to login screen and clears dashboard from back stack
                 Button(
                     onClick = {
                         UserSessionHelper.clearUserData(context)
                         Toast.makeText(context, "Logged out successfully", Toast.LENGTH_SHORT).show()
-                        navController.navigate("auth") {
-                            popUpTo("dashboard") { inclusive = true }
+                        navController.navigate(Screen.AUTH) {
+                            popUpTo(Screen.DASHBOARD) { inclusive = true }
                         }
                     },
                     modifier = Modifier
@@ -367,7 +365,7 @@ fun ProfileScreen(
                         )
                         Spacer(modifier = Modifier.height(24.dp))
                         Button(
-                            onClick = { navController.navigate("auth") },
+                            onClick = { navController.navigate(Screen.AUTH) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
                             colors = ButtonDefaults.buttonColors(containerColor = PurplePrimary)

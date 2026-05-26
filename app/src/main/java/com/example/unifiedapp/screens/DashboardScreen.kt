@@ -32,7 +32,7 @@ import androidx.navigation.NavController
 import com.example.unifiedapp.R
 import com.example.unifiedapp.data.UserProfile
 import com.example.unifiedapp.data.UserSessionManager
-import com.example.unifiedapp.navigation.Screen  // ✅ ADD THIS IMPORT
+import com.example.unifiedapp.navigation.Screen
 import com.example.unifiedapp.utils.TrialHelper
 import kotlinx.coroutines.launch
 
@@ -154,7 +154,8 @@ fun DashboardScreen(
                     userData = userData,
                     onLogout = {
                         sessionManager.logout()
-                        navController.navigate(Screen.LAUNCHER) {
+                        // ✅ Navigate directly to login screen and clear all back stack
+                        navController.navigate(Screen.AUTH) {
                             popUpTo(0) { inclusive = true }
                             launchSingleTop = true
                         }
@@ -178,9 +179,6 @@ fun DashboardScreen(
         )
     }
 }
-
-// The rest of the file (UnifiedHomeContent, UnifiedWellnessContent, UnifiedProfileContent) remains unchanged
-// except that we now use Screen constants in navigation calls.
 
 @Composable
 fun UnifiedHomeContent(
@@ -566,6 +564,7 @@ fun UnifiedProfileContent(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // ✅ Logout button – now navigates directly to login screen with cleared back stack
                 Button(
                     onClick = onLogout,
                     modifier = Modifier.fillMaxWidth().height(52.dp),

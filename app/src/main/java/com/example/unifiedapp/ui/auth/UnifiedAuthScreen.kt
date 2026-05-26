@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.unifiedapp.utils.UserSessionHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -64,6 +65,23 @@ fun UnifiedAuthScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    // ✅ Auto‑redirect if already logged in
+    LaunchedEffect(Unit) {
+        val session = UserSessionHelper.getUserData(context)
+        if (session.isLoggedIn) {
+            val profile = UserProfile(
+                name = session.name,
+                email = session.email,
+                registrationId = session.registrationId,
+                age = session.age,
+                gender = session.gender,
+                isLoggedIn = true,
+                anonymousId = session.anonymousId
+            )
+            onLoginSuccess(profile)
+        }
+    }
 
     var isLoginMode by remember { mutableStateOf(true) }
     var isLoading by remember { mutableStateOf(false) }
@@ -619,7 +637,7 @@ fun UnifiedAuthScreen(
     }
 }
 
-// API Functions
+// API Functions (unchanged)
 suspend fun performLogin(
     context: Context,
     registrationId: String,
@@ -661,7 +679,6 @@ suspend fun performLogin(
                 val regId = json.getString("registration_id")
                 val anonymousId = json.optString("anonymous_id", generateAnonymousId(name, regId))
 
-                // Save session
                 saveUserSession(context, regId, name, email, age, gender, anonymousId)
 
                 val profile = UserProfile(
