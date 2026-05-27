@@ -227,17 +227,18 @@ fun ResultScreen(
     // State for download
     var isDownloading by remember { mutableStateOf(false) }
 
-    var trialDecremented by remember { mutableStateOf(false) }
-
-    LaunchedEffect(Unit) {
-        if (!trialDecremented && registrationId.isNotBlank()) {
-            trialDecremented = true
-            val success = TrialHelper.useDepressionTrial(registrationId)
-            if (!success) {
-                Toast.makeText(context, "Failed to update trial count", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
+    // ✅ TRIAL DECREMENT REMOVED – depression assessments are now unlimited
+    // var trialDecremented by remember { mutableStateOf(false) }
+    //
+    // LaunchedEffect(Unit) {
+    //     if (!trialDecremented && registrationId.isNotBlank()) {
+    //         trialDecremented = true
+    //         val success = TrialHelper.useDepressionTrial(registrationId)
+    //         if (!success) {
+    //             Toast.makeText(context, "Failed to update trial count", Toast.LENGTH_SHORT).show()
+    //         }
+    //     }
+    // }
 
     Box(
         modifier = Modifier
@@ -417,10 +418,11 @@ fun ResultScreen(
                 )
             }
 
-            // 6. Download Report Button
+            // 6. Download Report Button (updated with userEmail)
             item {
                 DownloadReportButton(
                     userName = userName,
+                    userEmail = savedEmail,                        // ✅ NEW
                     userAge = userAge,
                     userGender = userGender,
                     anonymousId = anonymousId,
@@ -1357,7 +1359,6 @@ fun EnhancedRecommendationItem(
 
         if (!isLast) {
             Spacer(modifier = Modifier.height(8.dp))
-            // FIXED: replaced HorizontalDivider with Divider
             Divider(
                 color = Color(0xFFE5E7EB),
                 thickness = 1.dp,
@@ -1368,10 +1369,11 @@ fun EnhancedRecommendationItem(
     }
 }
 
-// ============ DOWNLOAD REPORT BUTTON ============
+// ============ DOWNLOAD REPORT BUTTON (updated with userEmail) ============
 @Composable
 fun DownloadReportButton(
     userName: String,
+    userEmail: String,                          // ✅ NEW parameter
     userAge: Int,
     userGender: String,
     anonymousId: String,
@@ -1486,7 +1488,6 @@ fun DownloadReportButton(
             Spacer(modifier = Modifier.height(16.dp))
             if (isDownloading) {
                 Column(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
-                    // FIXED: removed braces around progress value
                     LinearProgressIndicator(
                         progress = downloadProgress / 100f,
                         modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
@@ -1516,6 +1517,7 @@ fun DownloadReportButton(
                             val filePath = ReportDownloadHelper.generateReport(
                                 context = context,
                                 userName = userName,
+                                userEmail = userEmail,           // ✅ Pass email to helper
                                 userAge = userAge,
                                 userGender = userGender,
                                 anonymousId = anonymousId,

@@ -17,13 +17,14 @@ object UserSessionHelper {
         val isLoggedIn: Boolean
     )
 
+    // This method is used during login (if you ever call it – currently not used, but kept for consistency)
     fun saveUserData(context: Context, userData: UserData) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().apply {
-            putString("user_name", userData.name)
-            putString("user_gender", userData.gender)
-            putString("user_email", userData.email)
-            putInt("user_age", userData.age)
+            putString("name", userData.name)               // ✅ changed from "user_name"
+            putString("gender", userData.gender)           // ✅ changed from "user_gender"
+            putString("email", userData.email)             // ✅ changed from "user_email"
+            putInt("age", userData.age)                    // ✅ changed from "user_age"
             putString("registration_id", userData.registrationId)
             putString("anonymous_id", userData.anonymousId)
             putBoolean("is_logged_in", userData.isLoggedIn)
@@ -33,13 +34,14 @@ object UserSessionHelper {
         Log.d(TAG, "✅ Saved user data - Reg ID: ${userData.registrationId}")
     }
 
+    // This method is used by ResultScreen and elsewhere – now reads the correct keys
     fun getUserData(context: Context): UserData {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         return UserData(
-            name = prefs.getString("user_name", "") ?: "",
-            gender = prefs.getString("user_gender", "") ?: "",
-            email = prefs.getString("user_email", "") ?: "",
-            age = prefs.getInt("user_age", 0),
+            name = prefs.getString("name", "") ?: "",                // ✅ fixed key
+            gender = prefs.getString("gender", "") ?: "",            // ✅ fixed key
+            email = prefs.getString("email", "") ?: "",              // ✅ fixed key
+            age = prefs.getInt("age", 0),                            // ✅ fixed key
             registrationId = prefs.getString("registration_id", "") ?: "",
             anonymousId = prefs.getString("anonymous_id", "") ?: "",
             isLoggedIn = prefs.getBoolean("is_logged_in", false)
