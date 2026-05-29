@@ -264,7 +264,9 @@ class SimpleServerClient(private val context: Context) {
                 withContext(Dispatchers.Main) { callback.onProgress(0, "Preparing upload...") }
 
                 val boundary = "----WebKitFormBoundary" + UUID.randomUUID().toString().replace("-", "")
-                val fullUrl = "$baseUrl/api/student/upload-assessment"
+
+                val fullUrl = "$baseUrl/api/student/assessment"
+
                 Log.d("UPLOAD_DEBUG", "Connecting to: $fullUrl")
 
                 val url = URL(fullUrl)
@@ -313,7 +315,12 @@ class SimpleServerClient(private val context: Context) {
                 addFormField("anonymous_id", assessmentData.anonymousId)
                 addFormField("age", assessmentData.age.toString())
                 addFormField("assessment_type", assessmentData.assessmentType)
-                addFormField("gad7_score", assessmentData.gad7Score.toString())
+
+                if (assessmentData.assessmentType == "depression") {
+                    addFormField("phq_score", assessmentData.phqScore.toString())
+                } else {
+                    addFormField("gad_score", assessmentData.gad7Score.toString())
+                }
                 addFormField("questionnaire_score", assessmentData.questionnaireScore.toString())
 
                 var progressStep = 0

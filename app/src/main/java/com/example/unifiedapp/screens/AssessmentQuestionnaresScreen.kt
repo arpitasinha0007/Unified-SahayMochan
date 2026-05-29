@@ -2,6 +2,7 @@ package com.example.unifiedapp.screens
 
 import android.Manifest
 import android.content.Context
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Environment
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.MonitorHeart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,7 +36,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import androidx.camera.core.UseCase
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -55,13 +57,12 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.Executors
 
-// ============ MOCHAN COLOR PALETTE ============
+// ============ COLOR PALETTES ============
 val MochanPurplePrimary = Color(0xFF8B5CF6)
 val MochanPurpleSecondary = Color(0xFFA78BFA)
 val MochanBackgroundLight = Color(0xFFF5F3FF)
 val MochanSurfaceWhite = Color.White
 
-// ============ SAHAY COLOR PALETTE ============
 val SahaySageLight = Color(0xFFF1F7F3)
 val SahaySageMedium = Color(0xFFD3E4D6)
 val SahaySageAccent = Color(0xFF6B9071)
@@ -106,7 +107,29 @@ val ANSWER_OPTIONS = listOf(
     AnswerOption("3", "Nearly every day", 3, "😢"),
 )
 
-// --- MAIN SCREEN ---
+// ========== HELPER FUNCTIONS FOR TEMPORARY STORAGE ==========
+private fun saveAnswerToPrefs(prefs: SharedPreferences, questionIndex: Int, score: Int) {
+    prefs.edit().putInt("answer_$questionIndex", score).apply()
+}
+
+private fun loadAnswersFromPrefs(prefs: SharedPreferences, totalQuestions: Int): Map<Int, Int> {
+    val map = mutableMapOf<Int, Int>()
+    for (i in 0 until totalQuestions) {
+        val score = prefs.getInt("answer_$i", -1)
+        if (score != -1) map[i] = score
+    }
+    return map
+}
+
+private fun clearAnswersFromPrefs(prefs: SharedPreferences, totalQuestions: Int) {
+    val editor = prefs.edit()
+    for (i in 0 until totalQuestions) {
+        editor.remove("answer_$i")
+    }
+    editor.apply()
+}
+
+// ========== MAIN SCREEN ==========
 @Composable
 fun AssessmentQuestionnairesScreen(
     navController: NavController,
@@ -115,6 +138,7 @@ fun AssessmentQuestionnairesScreen(
 ) {
     val isDepression = assessmentType == "depression"
     val questions = if (isDepression) PHQ9_QUESTIONS else GAD7_QUESTIONS
+    val totalQuestions = questions.size
 
     val backgroundColor = if (isDepression) MochanBackgroundLight else SahaySageLight
     val primaryColor = if (isDepression) MochanPurplePrimary else SahaySageAccent
@@ -123,7 +147,8 @@ fun AssessmentQuestionnairesScreen(
     else
         listOf(SahaySageAccent, SahaySageMedium)
 
-    var answers by remember { mutableStateOf<Map<Int, Int>>(emptyMap()) }
+    // Local UI state (used for immediate display, but answers are also persisted)
+    var answers by rememberSaveable { mutableStateOf<Map<Int, Int>>(emptyMap()) }
     var currentQuestion by remember { mutableIntStateOf(0) }
     var cameraActive by remember { mutableStateOf(false) }
     var analyzing by remember { mutableStateOf(false) }
@@ -141,6 +166,17 @@ fun AssessmentQuestionnairesScreen(
 
     val session = UserSessionHelper.getUserData(context)
     val anonymousId = session.anonymousId
+
+    // Temporary preferences for storing answers during the assessment
+    val tempPrefs = context.getSharedPreferences("assessment_temp", Context.MODE_PRIVATE)
+
+    // Load any previously saved answers when the screen is opened (in case of process death)
+    LaunchedEffect(Unit) {
+        val saved = loadAnswersFromPrefs(tempPrefs, totalQuestions)
+        if (saved.isNotEmpty()) {
+            answers = saved
+        }
+    }
 
     // Collect state flows from CameraViewModel
     val faceDetected by cameraViewModel.faceDetected.collectAsState()
@@ -225,13 +261,11 @@ fun AssessmentQuestionnairesScreen(
         }
     }
 
-    val totalQuestions = questions.size
     val progress = ((currentQuestion + 1).toFloat() / totalQuestions) * 100
     val isLastQuestion = currentQuestion == totalQuestions - 1
     val isFirstQuestion = currentQuestion == 0
-    val hasAnsweredCurrent = answers[currentQuestion] != null
 
-    // Updated: saves CSV with correct filename based on assessment type
+    // Save questionnaire CSV (used for upload)
     fun saveQuestionnaireCsv(context: Context, anonymousId: String, assessmentType: String, answers: Map<Int, Int>): String? {
         try {
             val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
@@ -246,17 +280,14 @@ fun AssessmentQuestionnairesScreen(
 
             val csvContent = StringBuilder()
             csvContent.append("question_index,question_text,answer_score\n")
-
             answers.forEach { (index, score) ->
                 val questionText = questions.getOrNull(index) ?: "Unknown Question"
                 csvContent.append("$index,\"$questionText\",$score\n")
             }
-
             csvFile.writeText(csvContent.toString())
 
             val prefs = context.getSharedPreferences("file_paths", Context.MODE_PRIVATE)
             prefs.edit().putString("phq9_csv_path", csvFile.absolutePath).apply()
-
             return csvFile.absolutePath
         } catch (e: Exception) {
             Log.e("AssessmentScreen", "Error saving questionnaire CSV: ${e.message}")
@@ -275,44 +306,62 @@ fun AssessmentQuestionnairesScreen(
         isCompleting = true
         cameraViewModel.stopRecording()
 
-        // ✅ Save video path after recording stops
         val videoPath = cameraViewModel.getLastVideoPath()
         if (videoPath != null) {
             context.getSharedPreferences("file_paths", Context.MODE_PRIVATE).edit()
                 .putString("video_path", videoPath).apply()
-            Log.d("AssessmentScreen", "Video path saved: $videoPath")
-        } else {
-            Log.e("AssessmentScreen", "Video path is null - recording may have failed")
         }
 
-        // Get AI Prediction
         val prediction = cameraViewModel.getPrediction()
-
-        // Save AU CSV
         cameraViewModel.saveCSVWithAUData(context)
 
-        // Save Questionnaire CSV
-        saveQuestionnaireCsv(context, anonymousId, assessmentType, answers)
+        // ✅ Load answers from SharedPreferences (reliable, survives recomposition)
+        val savedAnswers = loadAnswersFromPrefs(tempPrefs, totalQuestions)
 
-        val totalScore = answers.values.sum()
+        // 🔍 DEBUG: Show assessment type and saved answers in log and Toast
+        Log.d("MOCHAN_DEBUG", "Assessment type: $assessmentType, totalQuestions: $totalQuestions")
+        Log.d("MOCHAN_DEBUG", "Saved answers from prefs: $savedAnswers")
 
-        // Save to preferences – store both PHQ and GAD scores (the unused one remains 0)
+        // Calculate total score
+        var totalScore = 0
+        for (i in 0 until totalQuestions) {
+            val ans = savedAnswers[i] ?: 0
+            Log.d("MOCHAN_DEBUG", "Question $i -> answer = $ans")
+            totalScore += ans
+        }
+        Log.d("MOCHAN_DEBUG", "Total score = $totalScore")
+
+        val maxScore = if (isDepression) 27 else 21
+        val finalScore = totalScore.coerceIn(0, maxScore)
+
+//        // 🟢 SHOW TOAST ON SCREEN (visible even if logs are hidden)
+//        android.widget.Toast.makeText(
+//            context,
+//            "DEBUG: $assessmentType Score = $finalScore",
+//            android.widget.Toast.LENGTH_LONG
+//        ).show()
+
+        // Clear temporary answers after use
+        clearAnswersFromPrefs(tempPrefs, totalQuestions)
+
+        // Save final CSV (for upload)
+        saveQuestionnaireCsv(context, anonymousId, assessmentType, savedAnswers)
+
+        // Save to permanent preferences (for result screen)
         val prefs = context.getSharedPreferences("assessment_prefs", Context.MODE_PRIVATE)
         prefs.edit().apply {
-            putInt("lastAssessmentScore", totalScore)
+            putInt("lastAssessmentScore", finalScore)
             putString("lastAssessmentDate", SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).format(Date()))
             putString("assessment_type", assessmentType)
 
-            // Store the appropriate score separately for upload
             if (assessmentType == "depression") {
-                putInt("phq_score", totalScore)
-                putInt("gad7_score", 0)   // ensure it's cleared
+                putInt("phq_score", finalScore)
+                putInt("gad7_score", 0)
             } else {
-                putInt("gad7_score", totalScore)
+                putInt("gad7_score", finalScore)
                 putInt("phq_score", 0)
             }
 
-            // Save AI prediction details
             prediction?.let {
                 putFloat("ai_raw_score", it.score.toFloat())
                 putString("ai_prediction_label", it.prediction)
@@ -321,26 +370,21 @@ fun AssessmentQuestionnairesScreen(
             apply()
         }
 
-        // Delay slightly for data to save
+        // Clear local UI answers map
+        answers = emptyMap()
+
         coroutineScope.launch {
             delay(500)
             try {
-                if (isDepression) {
-                    navController.navigate("mochan_result/$totalScore") {
-                        popUpTo("launcher") { inclusive = false }
-                    }
-                } else {
-                    navController.navigate("sahay_result/$totalScore") {
-                        popUpTo("launcher") { inclusive = false }
-                    }
+                val route = if (isDepression) "mochan_result/$finalScore" else "sahay_result/$finalScore"
+                navController.navigate(route) {
+                    popUpTo("launcher") { inclusive = false }
                 }
             } catch (e: Exception) {
-                Log.e("AssessmentScreen", "Navigation error: ${e.message}")
                 navController.navigate("launcher")
             }
         }
     }
-
     fun handlePrevious() {
         if (!isFirstQuestion) currentQuestion -= 1
     }
@@ -519,7 +563,9 @@ fun AssessmentQuestionnairesScreen(
                                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                         AnswerBox(ANSWER_OPTIONS[0], answers[currentQuestion]) { score ->
+                                            // Save to both UI map and SharedPreferences immediately
                                             answers = answers + (currentQuestion to score)
+                                            saveAnswerToPrefs(tempPrefs, currentQuestion, score)
                                             analyzing = true
                                             coroutineScope.launch {
                                                 delay(800)
@@ -533,6 +579,7 @@ fun AssessmentQuestionnairesScreen(
                                         }
                                         AnswerBox(ANSWER_OPTIONS[1], answers[currentQuestion]) { score ->
                                             answers = answers + (currentQuestion to score)
+                                            saveAnswerToPrefs(tempPrefs, currentQuestion, score)
                                             analyzing = true
                                             coroutineScope.launch {
                                                 delay(800)
@@ -548,6 +595,7 @@ fun AssessmentQuestionnairesScreen(
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                         AnswerBox(ANSWER_OPTIONS[2], answers[currentQuestion]) { score ->
                                             answers = answers + (currentQuestion to score)
+                                            saveAnswerToPrefs(tempPrefs, currentQuestion, score)
                                             analyzing = true
                                             coroutineScope.launch {
                                                 delay(800)
@@ -561,6 +609,7 @@ fun AssessmentQuestionnairesScreen(
                                         }
                                         AnswerBox(ANSWER_OPTIONS[3], answers[currentQuestion]) { score ->
                                             answers = answers + (currentQuestion to score)
+                                            saveAnswerToPrefs(tempPrefs, currentQuestion, score)
                                             analyzing = true
                                             coroutineScope.launch {
                                                 delay(800)
