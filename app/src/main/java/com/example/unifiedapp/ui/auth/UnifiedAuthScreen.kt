@@ -66,7 +66,7 @@ fun UnifiedAuthScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // ✅ Auto‑redirect if already logged in
+    // Auto‑redirect if already logged in
     LaunchedEffect(Unit) {
         val session = UserSessionHelper.getUserData(context)
         if (session.isLoggedIn) {
@@ -117,9 +117,9 @@ fun UnifiedAuthScreen(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Logo and Title
             Spacer(modifier = Modifier.height(40.dp))
 
+            // Logo
             Box(
                 modifier = Modifier
                     .size(80.dp)
@@ -218,7 +218,6 @@ fun UnifiedAuthScreen(
                             color = AuthTextPrimary
                         )
 
-                        // Registration ID Field
                         OutlinedTextField(
                             value = loginRegId,
                             onValueChange = { loginRegId = it },
@@ -238,7 +237,6 @@ fun UnifiedAuthScreen(
                             )
                         )
 
-                        // Password Field
                         OutlinedTextField(
                             value = loginPassword,
                             onValueChange = { loginPassword = it },
@@ -271,7 +269,6 @@ fun UnifiedAuthScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Login Button
                         Button(
                             onClick = {
                                 scope.launch {
@@ -637,7 +634,8 @@ fun UnifiedAuthScreen(
     }
 }
 
-// API Functions (unchanged)
+// ============ API FUNCTIONS ============
+
 suspend fun performLogin(
     context: Context,
     registrationId: String,
@@ -718,6 +716,7 @@ suspend fun performSignup(
             connection.connectTimeout = 15000
             connection.readTimeout = 15000
 
+            // Build request body matching server expectations – include optional fields as null
             val requestBody = JSONObject().apply {
                 put("registration_id", registrationId)
                 put("password", password)
@@ -725,7 +724,12 @@ suspend fun performSignup(
                 put("gender", gender)
                 put("email", email)
                 put("age", age)
-                put("roll_no", registrationId)
+                put("roll_no", registrationId)          // Use registration_id as roll_no
+                // Optional fields – explicitly set to null to avoid validation errors
+                put("phone_no", JSONObject.NULL)
+                put("is_underage", false)
+                put("parent_name", JSONObject.NULL)
+                put("parent_email", JSONObject.NULL)
             }
 
             connection.outputStream.use { os ->
@@ -752,10 +756,15 @@ suspend fun performSignup(
                     anonymousId = anonymousId
                 )
                 return@withContext Pair(profile, null)
-            } else if (responseCode == 400 && response.contains("already exists")) {
-                return@withContext Pair(null, "Registration ID already exists")
             } else {
-                return@withContext Pair(null, "Signup failed. Please try again.")
+                // Extract meaningful error message
+                val errorMsg = try {
+                    val json = JSONObject(response)
+                    json.optString("detail", json.optString("message", response))
+                } catch (e: Exception) {
+                    response
+                }
+                return@withContext Pair(null, "Signup failed: $errorMsg")
             }
         } catch (e: Exception) {
             return@withContext Pair(null, "Connection failed: ${e.message}")

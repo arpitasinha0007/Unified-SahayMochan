@@ -45,9 +45,9 @@ import androidx.core.net.toUri
 import androidx.navigation.NavController
 import com.example.unifiedapp.navigation.Screen
 import com.example.unifiedapp.utils.ReportDownloadHelper
-import com.example.unifiedapp.utils.TrialHelper
 import com.example.unifiedapp.utils.UploadHelper
 import com.example.unifiedapp.utils.UserSessionHelper
+import com.example.unifiedapp.utils.generateAnonymousId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -108,30 +108,23 @@ val GradientOrangeRed = Brush.linearGradient(
     colors = listOf(Color(0xFFF97316), Color(0xFFEF4444))
 )
 
-// Severity colors
-val MildColor = Color(0xFF10B981)      // Green
-val MildSecondary = Color(0xFF34D399)   // Light Green
-val MildGradient = Brush.linearGradient(
-    colors = listOf(Color(0xFF10B981), Color(0xFF34D399))
-)
+val MildColor = Color(0xFF10B981)
+val MildSecondary = Color(0xFF34D399)
+val MildGradient = Brush.linearGradient(listOf(MildColor, MildSecondary))
 
-val ModerateColor = Color(0xFFF59E0B)   // Orange
-val ModerateSecondary = Color(0xFFFBBF24) // Light Orange
-val ModerateGradient = Brush.linearGradient(
-    colors = listOf(Color(0xFFF59E0B), Color(0xFFFBBF24))
-)
+val ModerateColor = Color(0xFFF59E0B)
+val ModerateSecondary = Color(0xFFFBBF24)
+val ModerateGradient = Brush.linearGradient(listOf(ModerateColor, ModerateSecondary))
 
-val SevereColor = Color(0xFFEF4444)     // Red
-val SevereSecondary = Color(0xFFF87171) // Light Red
-val SevereGradient = Brush.linearGradient(
-    colors = listOf(Color(0xFFEF4444), Color(0xFFF87171))
-)
+val SevereColor = Color(0xFFEF4444)
+val SevereSecondary = Color(0xFFF87171)
+val SevereGradient = Brush.linearGradient(listOf(SevereColor, SevereSecondary))
 
-val MildLightColor = Color(0xFFECFDF5)   // Light Green
-val ModerateLightColor = Color(0xFFFFFBEB) // Light Orange
-val SevereLightColor = Color(0xFFFFF1F2)   // Light Red
+val MildLightColor = Color(0xFFECFDF5)
+val ModerateLightColor = Color(0xFFFFFBEB)
+val SevereLightColor = Color(0xFFFFF1F2)
 
-// ============ MAIN SCREEN COMPOSABLE ============
+// ============ MAIN SCREEN ============
 @Composable
 fun ResultScreen(
     navController: NavController,
@@ -141,52 +134,26 @@ fun ResultScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
+    val prefs = context.getSharedPreferences("assessment_prefs", Context.MODE_PRIVATE)
+    val actualScore = prefs.getInt("lastAssessmentScore", score)
     val isDepression = assessmentType == "depression"
 
+    Log.d("RESULT_FIX", "Nav score: $score, Actual score: $actualScore, Type: $assessmentType")
+
     val session = UserSessionHelper.getUserData(context)
+    var anonymousId = session.anonymousId
+    if (anonymousId.isBlank()) {
+        // Fallback: generate from registration ID or name
+        anonymousId = generateAnonymousId(session.name, session.registrationId)
+        Log.w("ResultScreen", "Anonymous ID was blank, using fallback: $anonymousId")
+    }
     val savedEmail = session.email
     val userName = session.name
-    val anonymousId = session.anonymousId
     val userAge = session.age
     val userGender = session.gender
     val registrationId = session.registrationId
 
-    Log.d("RESULT_SCREEN", "User session - Name: $userName, Age: $userAge, Reg ID: $registrationId")
-
-    // ───────────────────────────────────────────────────────────────────────────
-    // UNDERAGE REDIRECT REMOVED – now all users see the full result screen.
-    // If you need underage handling, uncomment the code below.
-    // ───────────────────────────────────────────────────────────────────────────
-    /*
-    val isUnderage = userAge < 18
-    var hasRedirected by remember { mutableStateOf(false) }
-
-    LaunchedEffect(isUnderage) {
-        if (isUnderage && !hasRedirected) {
-            hasRedirected = true
-            val prefs = context.getSharedPreferences("assessment_prefs", Context.MODE_PRIVATE)
-            val aiLabel = prefs.getString("ai_prediction_label", "N/A") ?: "N/A"
-            try {
-                val encodedLabel = java.net.URLEncoder.encode(aiLabel, "UTF-8")
-                navController.navigate("underage_result?score=$score&aiPrediction=$encodedLabel") {
-                    popUpTo(navController.currentBackStackEntry?.destination?.route ?: "launcher") { inclusive = true }
-                }
-            } catch (e: Exception) {
-                Log.e("RESULT_SCREEN", "Navigation failed: ${e.message}")
-            }
-        }
-    }
-
-    if (isUnderage) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator(color = Color(0xFF6B9071))
-        }
-        return
-    }
-    */
-
-    // Retrieve AI prediction data
-    val prefs = context.getSharedPreferences("assessment_prefs", Context.MODE_PRIVATE)
+    // AI prediction data (same as before)
     val aiScore = prefs.getInt("ai_prediction_score", -1)
     val aiLabel = prefs.getString("ai_prediction_label", "") ?: ""
     val aiConfidence = prefs.getFloat("ai_prediction_confidence", 0f)
@@ -195,124 +162,75 @@ fun ResultScreen(
     val aiRawScore = prefs.getFloat("ai_raw_score", 0f)
 
     val aiData = if (aiScore != -1 && aiLabel.isNotBlank()) {
-        AiPredictionData(
-            score = aiScore,
-            label = aiLabel,
-            confidence = aiConfidence,
-            modelVersion = aiModelVersion,
-            frameCount = aiFrameCount,
-            rawScore = aiRawScore
-        )
+        AiPredictionData(aiScore, aiLabel, aiConfidence, aiModelVersion, aiFrameCount, aiRawScore)
     } else null
 
-    // Get severity class for AI
     val aiSeverityData = if (aiData != null) {
         val severityClass = when {
             aiData.score <= 9 -> SeverityClass.MILD
-            aiData.score <= 14 -> SeverityClass.MODERATE
+            aiData.score <= 18 -> SeverityClass.MODERATE
             else -> SeverityClass.SEVERE
         }
         getSeverityDataFromClass(severityClass)
     } else null
 
-    // Fallback severity for recommendations if AI is missing (use questionnaire severity)
-    val fallbackSeverityData = getSeverityDataFromScore(score, isDepression)
-    val displaySeverity = aiSeverityData ?: fallbackSeverityData
+    val fallbackSeverityData = getSeverityDataFromScore(actualScore, isDepression)
+    val displaySeverity = fallbackSeverityData
 
-    // State for upload
+    // Upload states
     var uploadStatus by remember { mutableStateOf<UploadStatus?>(null) }
     var isUploading by remember { mutableStateOf(false) }
     var uploadStarted by remember { mutableStateOf(false) }
-
-    // State for download
     var isDownloading by remember { mutableStateOf(false) }
 
-    // ✅ TRIAL DECREMENT REMOVED – depression assessments are now unlimited
-    // var trialDecremented by remember { mutableStateOf(false) }
-    //
-    // LaunchedEffect(Unit) {
-    //     if (!trialDecremented && registrationId.isNotBlank()) {
-    //         trialDecremented = true
-    //         val success = TrialHelper.useDepressionTrial(registrationId)
-    //         if (!success) {
-    //             Toast.makeText(context, "Failed to update trial count", Toast.LENGTH_SHORT).show()
-    //         }
-    //     }
-    // }
+    // Upload function
+    fun performUpload() {
+        if (isUploading) return
+        if (anonymousId.isBlank()) {
+            Toast.makeText(context, "Cannot upload: missing user ID. Please login again.", Toast.LENGTH_LONG).show()
+            return
+        }
+        coroutineScope.launch {
+            startUpload(
+                context = context,
+                coroutineScope = coroutineScope,
+                anonymousId = anonymousId,
+                userAge = userAge,
+                aiRawScore = aiRawScore,
+                savedEmail = savedEmail,
+                registrationId = registrationId,
+                isUploading = { isUploading = it },
+                uploadStatus = { uploadStatus = it },
+                uploadStarted = { uploadStarted = it }
+            )
+        }
+    }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Transparent)
-    ) {
+    Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 100.dp)
         ) {
-            // 1. Header
             item { AssessmentHeader(navController, displaySeverity.primaryColor) }
 
-            // 2. Upload Button and Status Card
             item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 8.dp)
-                ) {
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp)) {
                     UploadDataButton(
                         isUploading = isUploading,
                         uploadStatus = uploadStatus,
-                        onUploadClick = {
-                            if (!isUploading && anonymousId.isNotBlank()) {
-                                coroutineScope.launch {
-                                    startUpload(
-                                        context = context,
-                                        coroutineScope = coroutineScope,
-                                        anonymousId = anonymousId,
-                                        userAge = userAge,
-                                        aiRawScore = aiRawScore,
-                                        savedEmail = savedEmail,
-                                        registrationId = registrationId,
-                                        isUploading = { isUploading = it },
-                                        uploadStatus = { uploadStatus = it },
-                                        uploadStarted = { uploadStarted = it }
-                                    )
-                                }
-                            }
-                        }
+                        onUploadClick = { performUpload() }
                     )
-
                     if (uploadStarted && uploadStatus != null) {
                         Spacer(modifier = Modifier.height(8.dp))
                         when (val status = uploadStatus) {
                             is UploadStatus.SUCCESS -> {
-                                UploadSuccessCard(
-                                    message = status.message,
-                                    onDismiss = { uploadStarted = false }
-                                )
+                                UploadSuccessCard(status.message) { uploadStarted = false }
+                                LaunchedEffect(Unit) {
+                                    delay(3000)
+                                    uploadStarted = false
+                                }
                             }
-                            is UploadStatus.ERROR -> {
-                                UploadErrorCard(
-                                    errorMessage = status.message,
-                                    onRetry = {
-                                        coroutineScope.launch {
-                                            startUpload(
-                                                context = context,
-                                                coroutineScope = coroutineScope,
-                                                anonymousId = anonymousId,
-                                                userAge = userAge,
-                                                aiRawScore = aiRawScore,
-                                                savedEmail = savedEmail,
-                                                registrationId = registrationId,
-                                                isUploading = { isUploading = it },
-                                                uploadStatus = { uploadStatus = it },
-                                                uploadStarted = { uploadStarted = it }
-                                            )
-                                        }
-                                    },
-                                    isUploading = isUploading
-                                )
-                            }
+                            is UploadStatus.ERROR -> UploadErrorCard(status.message, onRetry = { performUpload() }, isUploading)
                             is UploadStatus.UPLOADING -> UploadProgressCard()
                             null -> {}
                         }
@@ -320,141 +238,69 @@ fun ResultScreen(
                 }
             }
 
-            // 3. User Info Card
-            item {
-                UserInfoCard(
-                    userName = userName,
-                    userAge = userAge,
-                    userGender = userGender,
-                    anonymousId = anonymousId,
-                    registrationId = registrationId,
-                    date = SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(Date())
-                )
-            }
+            item { UserInfoCard(userName, userAge, userGender, anonymousId, registrationId, SimpleDateFormat("MMMM dd, yyyy", Locale.getDefault()).format(Date())) }
 
-            // 4. AI Analysis Card
             item {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 10.dp)
-                ) {
-                    Text(
-                        "AI Analysis Result",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF1F2937),
-                        modifier = Modifier.padding(bottom = 12.dp)
-                    )
-
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp)) {
+                    Text("AI Analysis Result", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F2937), modifier = Modifier.padding(bottom = 12.dp))
                     if (aiSeverityData != null) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            shape = RoundedCornerShape(24.dp),
-                            elevation = CardDefaults.cardElevation(4.dp)
-                        ) {
-                            Column(
-                                modifier = Modifier.padding(20.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = aiSeverityData.levelEmoji,
-                                    fontSize = 48.sp
-                                )
+                        Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(24.dp), elevation = CardDefaults.cardElevation(4.dp)) {
+                            Column(modifier = Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(aiSeverityData.levelEmoji, fontSize = 48.sp)
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = aiSeverityData.level,
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = aiSeverityData.primaryColor
-                                )
+                                Text(aiSeverityData.level, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = aiSeverityData.primaryColor)
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = aiSeverityData.description,
-                                    fontSize = 14.sp,
-                                    color = Color(0xFF4B5563),
-                                    textAlign = TextAlign.Center
-                                )
+                                Text(aiSeverityData.description, fontSize = 14.sp, color = Color(0xFF4B5563), textAlign = TextAlign.Center)
                                 if (aiData != null && aiData.label.isNotBlank()) {
                                     Spacer(modifier = Modifier.height(12.dp))
-                                    Surface(
-                                        color = aiSeverityData.primaryColor.copy(alpha = 0.1f),
-                                        shape = RoundedCornerShape(16.dp)
-                                    ) {
-                                        Text(
-                                            text = "AI Prediction: ${aiData.label}",
-                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                            fontSize = 13.sp,
-                                            color = aiSeverityData.primaryColor,
-                                            fontWeight = FontWeight.Medium
-                                        )
+                                    Surface(color = aiSeverityData.primaryColor.copy(alpha = 0.1f), shape = RoundedCornerShape(16.dp)) {
+                                        Text("AI Prediction: ${aiData.label}", modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), fontSize = 13.sp, color = aiSeverityData.primaryColor, fontWeight = FontWeight.Medium)
                                     }
                                 }
                             }
                         }
                     } else {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
-                            shape = RoundedCornerShape(24.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier.padding(40.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("AI analysis not available", color = Color.Gray)
-                            }
+                        Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = Color.White), shape = RoundedCornerShape(24.dp)) {
+                            Box(modifier = Modifier.padding(40.dp), contentAlignment = Alignment.Center) { Text("AI analysis not available", color = Color.Gray) }
                         }
                     }
                 }
             }
 
-            // 5. Recommendations Card
-            item {
-                EnhancedRecommendationsCard(
-                    severityData = displaySeverity,
-                    recommendations = displaySeverity.recommendations
-                )
-            }
+            item { EnhancedRecommendationsCard(displaySeverity, displaySeverity.recommendations) }
 
-            // 6. Download Report Button (updated with userEmail)
             item {
                 DownloadReportButton(
                     userName = userName,
-                    userEmail = savedEmail,                        // ✅ NEW
+                    userEmail = savedEmail,
                     userAge = userAge,
                     userGender = userGender,
                     anonymousId = anonymousId,
                     registrationId = registrationId,
-                    score = score,
+                    score = actualScore,
                     phq9Severity = displaySeverity,
                     aiData = aiData,
                     isDownloading = isDownloading,
                     onDownloadStart = { isDownloading = true },
                     onDownloadComplete = { success ->
                         isDownloading = false
-                        if (success) {
-                            Toast.makeText(
-                                context,
-                                "PDF Report downloaded successfully",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
+                        if (success) Toast.makeText(context, "PDF Report downloaded successfully", Toast.LENGTH_LONG).show()
                     },
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
                 )
             }
 
-            // 7. SETU Promotional Card
             item { EnhancedSetuPromoCard() }
-
-            // 8. Wellness Tools Card
             item { EnhancedWellnessToolsCard(navController) }
         }
     }
 }
 
+// ============ THE REST OF YOUR COMPOSABLES (UploadDataButton, UserInfoCard, etc.) ============
+// → These remain exactly as they were in your original file.
+// → I am not repeating them here – they are unchanged.
+// → Copy the entire file from your project and replace only the ResultScreen function above,
+//    and keep all other helper composables identical to your current working version.
 // ============ UPLOAD BUTTON COMPOSABLE ============
 @Composable
 fun UploadDataButton(
@@ -517,7 +363,6 @@ fun UploadDataButton(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Show upload status if exists
             if (uploadStatus is UploadStatus.SUCCESS) {
                 Surface(
                     color = MildLightColor,
@@ -1369,11 +1214,11 @@ fun EnhancedRecommendationItem(
     }
 }
 
-// ============ DOWNLOAD REPORT BUTTON (updated with userEmail) ============
+// ============ DOWNLOAD REPORT BUTTON ============
 @Composable
 fun DownloadReportButton(
     userName: String,
-    userEmail: String,                          // ✅ NEW parameter
+    userEmail: String,
     userAge: Int,
     userGender: String,
     anonymousId: String,
@@ -1453,7 +1298,7 @@ fun DownloadReportButton(
                 if (aiData != null) {
                     val aiSeverityClass = when {
                         aiData.score <= 9 -> SeverityClass.MILD
-                        aiData.score <= 14 -> SeverityClass.MODERATE
+                        aiData.score <= 18 -> SeverityClass.MODERATE
                         else -> SeverityClass.SEVERE
                     }
                     val aiSeverity = getSeverityDataFromClass(aiSeverityClass)
@@ -1517,7 +1362,7 @@ fun DownloadReportButton(
                             val filePath = ReportDownloadHelper.generateReport(
                                 context = context,
                                 userName = userName,
-                                userEmail = userEmail,           // ✅ Pass email to helper
+                                userEmail = userEmail,
                                 userAge = userAge,
                                 userGender = userGender,
                                 anonymousId = anonymousId,
@@ -1865,6 +1710,7 @@ fun getSeverityLevel(level: String): Int {
 
 fun getSeverityDataFromScore(score: Int, isDepression: Boolean = true): SeverityData {
     if (isDepression) {
+        // PHQ-9 Depression thresholds (0-27)
         return when {
             score <= 9 -> SeverityData(
                 level = "Mild",
@@ -1922,8 +1768,9 @@ fun getSeverityDataFromScore(score: Int, isDepression: Boolean = true): Severity
             )
         }
     } else {
+        // GAD-7 Anxiety thresholds (0-21)
         return when {
-            score <= 5 -> SeverityData(
+            score <= 7 -> SeverityData(
                 level = "Mild",
                 levelEmoji = "🟢",
                 primaryColor = MildColor,
@@ -1936,10 +1783,12 @@ fun getSeverityDataFromScore(score: Int, isDepression: Boolean = true): Severity
                 description = "Your responses suggest mild anxiety. Continue with self-care and stress management.",
                 recommendations = listOf(
                     RecommendationItem("🧘", "Breathing exercises", "Practice deep breathing when feeling tense.", MildColor),
-                    RecommendationItem("🚶", "Active lifestyle", "Regular walks can help reduce anxiety levels.", MildColor)
+                    RecommendationItem("🚶", "Active lifestyle", "Regular walks can help reduce anxiety levels.", MildColor),
+                    RecommendationItem("📝", "Stress journal", "Write down triggers to better understand your anxiety patterns.", MildColor),
+                    RecommendationItem("🌿", "Relaxation techniques", "Try progressive muscle relaxation or guided imagery.", MildColor)
                 )
             )
-            score <= 10 -> SeverityData(
+            score <= 14 -> SeverityData(
                 level = "Moderate",
                 levelEmoji = "🟡",
                 primaryColor = ModerateColor,
@@ -1952,7 +1801,9 @@ fun getSeverityDataFromScore(score: Int, isDepression: Boolean = true): Severity
                 description = "Your responses indicate moderate anxiety. Consider professional guidance.",
                 recommendations = listOf(
                     RecommendationItem("🏥", "Professional consultation", "Discuss your feelings with a counsellor.", ModerateColor),
-                    RecommendationItem("💬", "Social support", "Talk to people you trust about your worries.", ModerateColor)
+                    RecommendationItem("💬", "Social support", "Talk to people you trust about your worries.", ModerateColor),
+                    RecommendationItem("📅", "Routine structure", "Create a structured daily routine to reduce uncertainty.", ModerateColor),
+                    RecommendationItem("🛌", "Sleep hygiene", "Ensure adequate sleep to help manage anxiety symptoms.", ModerateColor)
                 )
             )
             else -> SeverityData(
@@ -1968,7 +1819,9 @@ fun getSeverityDataFromScore(score: Int, isDepression: Boolean = true): Severity
                 description = "Your responses indicate severe anxiety. Professional support is advised.",
                 recommendations = listOf(
                     RecommendationItem("🏥", "Immediate assistance", "Contact a mental health provider right away.", SevereColor),
-                    RecommendationItem("📞", "Crisis support", "Reach out to Tele MANAS for immediate help.", SevereColor)
+                    RecommendationItem("📞", "Crisis support", "Reach out to Tele MANAS for immediate help.", SevereColor),
+                    RecommendationItem("👥", "Reach out", "Talk to a trusted family member or friend today.", SevereColor),
+                    RecommendationItem("⚕️", "Medical evaluation", "Consider a comprehensive evaluation by a psychiatrist.", SevereColor)
                 )
             )
         }
