@@ -12,12 +12,15 @@ import com.example.unifiedapp.navigation.Screen
 import com.example.unifiedapp.navigation.UnifiedNavGraph
 import com.example.unifiedapp.theme.UnifiedAppTheme
 
-// testgit123
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            UnifiedAppTheme {
+            // Force light theme – ignore system dark mode and dynamic colors
+            UnifiedAppTheme(
+                darkTheme = false,      // always use light color scheme
+                dynamicColor = false    // use our fixed palette, not system dynamic colors
+            ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -25,7 +28,7 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     UnifiedNavGraph(
                         navController = navController,
-                        startDestination = Screen.LAUNCHER   // ✅ use constant
+                        startDestination = Screen.LAUNCHER
                     )
                 }
             }
