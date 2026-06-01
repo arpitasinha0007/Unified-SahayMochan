@@ -83,9 +83,9 @@ fun DashboardScreen(
                 containerColor = MaterialTheme.colorScheme.surface,
                 tonalElevation = 8.dp,
             ) {
-                        NavigationBarItem(
-                            icon = { Icon(if (selectedTab == BottomNavItem.Home) Icons.Filled.Home else Icons.Outlined.Home, contentDescription = "Home") },
-                            label = { Text("Home") },
+                NavigationBarItem(
+                    icon = { Icon(if (selectedTab == BottomNavItem.Home) Icons.Filled.Home else Icons.Outlined.Home, contentDescription = "Home") },
+                    label = { Text("Home") },
                     selected = selectedTab == BottomNavItem.Home,
                     onClick = { selectedTab = BottomNavItem.Home },
                     colors = NavigationBarItemDefaults.colors(
