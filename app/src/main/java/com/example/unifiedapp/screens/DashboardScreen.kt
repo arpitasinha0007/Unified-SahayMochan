@@ -80,12 +80,12 @@ fun DashboardScreen(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
             NavigationBar(
-                containerColor = Color.White,
+                containerColor = MaterialTheme.colorScheme.surface,
                 tonalElevation = 8.dp,
             ) {
-                NavigationBarItem(
-                    icon = { Icon(if (selectedTab == BottomNavItem.Home) Icons.Filled.Home else Icons.Outlined.Home, contentDescription = "Home") },
-                    label = { Text("Home") },
+                        NavigationBarItem(
+                            icon = { Icon(if (selectedTab == BottomNavItem.Home) Icons.Filled.Home else Icons.Outlined.Home, contentDescription = "Home") },
+                            label = { Text("Home") },
                     selected = selectedTab == BottomNavItem.Home,
                     onClick = { selectedTab = BottomNavItem.Home },
                     colors = NavigationBarItemDefaults.colors(
@@ -154,7 +154,6 @@ fun DashboardScreen(
                     userData = userData,
                     onLogout = {
                         sessionManager.logout()
-                        // ✅ Navigate directly to login screen and clear all back stack
                         navController.navigate(Screen.AUTH) {
                             popUpTo(0) { inclusive = true }
                             launchSingleTop = true
@@ -205,7 +204,7 @@ fun UnifiedHomeContent(
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-            color = Color(0xFFFFFDF9).copy(alpha = 0.75f),
+            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f),
             shadowElevation = 1.dp
         ) {
             Row(
@@ -273,7 +272,7 @@ fun UnifiedHomeContent(
                             ) {
                                 Icon(Icons.Default.MonitorHeart, contentDescription = "Anxiety", tint = Color.White, modifier = Modifier.size(28.dp))
                             }
-                            Surface(color = Color.White.copy(alpha = 0.8f), shape = RoundedCornerShape(8.dp)) {
+                            Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), shape = RoundedCornerShape(8.dp)) {
                                 Text("GAD-7", color = Color(0xFF1565C0), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
                             }
                         }
@@ -327,7 +326,7 @@ fun UnifiedHomeContent(
                             ) {
                                 Icon(Icons.Default.MonitorHeart, contentDescription = "Depression", tint = Color.White, modifier = Modifier.size(28.dp))
                             }
-                            Surface(color = Color.White.copy(alpha = 0.8f), shape = RoundedCornerShape(8.dp)) {
+                            Surface(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f), shape = RoundedCornerShape(8.dp)) {
                                 Text("PHQ-9", color = Color(0xFFBE185D), style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
                             }
                         }
@@ -390,7 +389,10 @@ fun UnifiedWellnessContent(navController: NavController) {
     ) {
         Text("Wellness Tools", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
 
-        Card(modifier = Modifier.fillMaxWidth().clickable { navController.navigate(Screen.BREATHING) }, elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+        Card(
+            modifier = Modifier.fillMaxWidth().clickable { navController.navigate(Screen.BREATHING) },
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
             Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Air, contentDescription = null, tint = Color(0xFF8B5CF6))
                 Spacer(modifier = Modifier.width(16.dp))
@@ -401,7 +403,10 @@ fun UnifiedWellnessContent(navController: NavController) {
             }
         }
 
-        Card(modifier = Modifier.fillMaxWidth().clickable { navController.navigate(Screen.SOUNDS) }, elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+        Card(
+            modifier = Modifier.fillMaxWidth().clickable { navController.navigate(Screen.SOUNDS) },
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
             Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.MusicNote, contentDescription = null, tint = Color(0xFF8B5CF6))
                 Spacer(modifier = Modifier.width(16.dp))
@@ -412,7 +417,10 @@ fun UnifiedWellnessContent(navController: NavController) {
             }
         }
 
-        Card(modifier = Modifier.fillMaxWidth().clickable { navController.navigate(Screen.MOOD_TRACKER) }, elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+        Card(
+            modifier = Modifier.fillMaxWidth().clickable { navController.navigate(Screen.MOOD_TRACKER) },
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
             Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Favorite, contentDescription = null, tint = Color(0xFF8B5CF6))
                 Spacer(modifier = Modifier.width(16.dp))
@@ -423,7 +431,10 @@ fun UnifiedWellnessContent(navController: NavController) {
             }
         }
 
-        Card(modifier = Modifier.fillMaxWidth().clickable { navController.navigate(Screen.JOURNAL) }, elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+        Card(
+            modifier = Modifier.fillMaxWidth().clickable { navController.navigate(Screen.JOURNAL) },
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
             Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFF8B5CF6))
                 Spacer(modifier = Modifier.width(16.dp))
@@ -434,7 +445,10 @@ fun UnifiedWellnessContent(navController: NavController) {
             }
         }
 
-        Card(modifier = Modifier.fillMaxWidth().clickable { navController.navigate(Screen.GROUNDING) }, elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
+        Card(
+            modifier = Modifier.fillMaxWidth().clickable { navController.navigate(Screen.GROUNDING) },
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
             Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.Nature, contentDescription = null, tint = Color(0xFF8B5CF6))
                 Spacer(modifier = Modifier.width(16.dp))
@@ -495,8 +509,8 @@ fun UnifiedProfileContent(
                         modifier = Modifier
                             .size(90.dp)
                             .clip(CircleShape)
-                            .background(Color.White)
-                            .border(3.dp, Color.White, CircleShape),
+                            .background(MaterialTheme.colorScheme.surface)
+                            .border(3.dp, MaterialTheme.colorScheme.surface, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(text = userName.take(1).uppercase(), fontSize = 40.sp, fontWeight = FontWeight.Bold, color = Color(0xFF8B5CF6))
@@ -515,7 +529,7 @@ fun UnifiedProfileContent(
                 Card(
                     modifier = Modifier.fillMaxWidth().clickable { navController.navigate(Screen.ASSESSMENT_HISTORY) },
                     shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -540,7 +554,7 @@ fun UnifiedProfileContent(
                 Card(
                     modifier = Modifier.fillMaxWidth().clickable { navController.navigate(Screen.PRIVACY_DATA) },
                     shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Row(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -564,7 +578,6 @@ fun UnifiedProfileContent(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // ✅ Logout button – now navigates directly to login screen with cleared back stack
                 Button(
                     onClick = onLogout,
                     modifier = Modifier.fillMaxWidth().height(52.dp),

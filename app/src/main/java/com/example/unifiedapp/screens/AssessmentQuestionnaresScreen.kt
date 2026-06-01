@@ -140,7 +140,15 @@ fun AssessmentQuestionnairesScreen(
     val questions = if (isDepression) PHQ9_QUESTIONS else GAD7_QUESTIONS
     val totalQuestions = questions.size
 
-    val backgroundColor = if (isDepression) MochanBackgroundLight else SahaySageLight
+    // Mochan purple gradient (same as profile screen)
+    val purpleGradient = Brush.verticalGradient(
+        colors = listOf(
+            Color(0xFFF3E8FF),
+            Color(0xFFE9D5FF),
+            Color(0xFFD8B4FE)
+        )
+    )
+
     val primaryColor = if (isDepression) MochanPurplePrimary else SahaySageAccent
     val gradientColors = if (isDepression)
         listOf(MochanPurplePrimary, MochanPurpleSecondary)
@@ -334,13 +342,6 @@ fun AssessmentQuestionnairesScreen(
         val maxScore = if (isDepression) 27 else 21
         val finalScore = totalScore.coerceIn(0, maxScore)
 
-//        // 🟢 SHOW TOAST ON SCREEN (visible even if logs are hidden)
-//        android.widget.Toast.makeText(
-//            context,
-//            "DEBUG: $assessmentType Score = $finalScore",
-//            android.widget.Toast.LENGTH_LONG
-//        ).show()
-
         // Clear temporary answers after use
         clearAnswersFromPrefs(tempPrefs, totalQuestions)
 
@@ -385,13 +386,16 @@ fun AssessmentQuestionnairesScreen(
             }
         }
     }
+
     fun handlePrevious() {
         if (!isFirstQuestion) currentQuestion -= 1
     }
 
     Scaffold(
-        modifier = Modifier.fillMaxSize().background(backgroundColor),
-        containerColor = backgroundColor,
+        modifier = Modifier
+            .fillMaxSize()
+            .background(purpleGradient),   // ← Mochan purple gradient background
+        containerColor = Color.Transparent, // let gradient show through
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
@@ -563,7 +567,6 @@ fun AssessmentQuestionnairesScreen(
                                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                         AnswerBox(ANSWER_OPTIONS[0], answers[currentQuestion]) { score ->
-                                            // Save to both UI map and SharedPreferences immediately
                                             answers = answers + (currentQuestion to score)
                                             saveAnswerToPrefs(tempPrefs, currentQuestion, score)
                                             analyzing = true
