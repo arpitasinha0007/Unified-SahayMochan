@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.unifiedapp.navigation.Screen
 import com.example.unifiedapp.utils.UserSessionHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -36,12 +37,10 @@ import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
-// Color scheme
-val AuthPurplePrimary = Color(0xFF8B5CF6)
-val AuthPurpleSecondary = Color(0xFFA78BFA)
-val AuthPurpleDark = Color(0xFF7C3AED)
-val AuthSageGreen = Color(0xFF6B9071)
-val AuthSageLight = Color(0xFFF1F7F3)
+// Color scheme (lavender + sage)
+val AuthLavenderPrimary = Color(0xFF9D8DF1)
+val AuthLavenderAccent = Color(0xFFD9D1FF)
+val AuthLavenderBackground = Color(0xFFFAF8FF)
 val AuthTextPrimary = Color(0xFF1F2937)
 val AuthTextSecondary = Color(0xFF6B7280)
 val AuthErrorRed = Color(0xFFEF4444)
@@ -66,7 +65,10 @@ fun UnifiedAuthScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // Auto‑redirect if already logged in
+    // Role selector (Patient / Clinician)
+    var selectedRole by remember { mutableStateOf("patient") }
+
+    // Auto‑redirect if already logged in (patient only)
     LaunchedEffect(Unit) {
         val session = UserSessionHelper.getUserData(context)
         if (session.isLoggedIn) {
@@ -92,7 +94,7 @@ fun UnifiedAuthScreen(
     var loginPassword by remember { mutableStateOf("") }
     var loginPasswordVisible by remember { mutableStateOf(false) }
 
-    // Signup fields
+    // Signup fields (patient only)
     var signupRegId by remember { mutableStateOf("") }
     var signupName by remember { mutableStateOf("") }
     var signupEmail by remember { mutableStateOf("") }
@@ -105,16 +107,13 @@ fun UnifiedAuthScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(Color(0xFFF5F3FF), Color(0xFFF1F7F3))
-                )
-            )
+            .background(AuthLavenderBackground)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(40.dp))
@@ -126,7 +125,7 @@ fun UnifiedAuthScreen(
                     .clip(RoundedCornerShape(20.dp))
                     .background(
                         Brush.linearGradient(
-                            colors = listOf(AuthPurplePrimary, AuthSageGreen)
+                            colors = listOf(AuthLavenderPrimary, AuthLavenderAccent)
                         )
                     ),
                 contentAlignment = Alignment.Center
@@ -154,6 +153,37 @@ fun UnifiedAuthScreen(
                 color = AuthTextSecondary,
                 modifier = Modifier.padding(top = 4.dp)
             )
+
+            // Role selector (only in login mode)
+            if (isLoginMode) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    FilterChip(
+                        selected = selectedRole == "patient",
+                        onClick = { selectedRole = "patient" },
+                        label = { Text("Patient") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = AuthLavenderPrimary,
+                            selectedLabelColor = Color.White
+                        ),
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                    FilterChip(
+                        selected = selectedRole == "clinician",
+                        onClick = { selectedRole = "clinician" },
+                        label = { Text("Clinician") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = AuthLavenderPrimary,
+                            selectedLabelColor = Color.White
+                        ),
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.height(32.dp))
 
@@ -199,7 +229,7 @@ fun UnifiedAuthScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Login Form
+            // Login Form (handles both patient and clinician)
             if (isLoginMode) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -212,7 +242,7 @@ fun UnifiedAuthScreen(
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Text(
-                            "Login to continue",
+                            if (selectedRole == "patient") "Patient Login" else "Clinician Login",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = AuthTextPrimary
@@ -221,19 +251,21 @@ fun UnifiedAuthScreen(
                         OutlinedTextField(
                             value = loginRegId,
                             onValueChange = { loginRegId = it },
-                            label = { Text("Registration ID / Roll Number") },
+                            label = { Text("Registration ID") },
                             leadingIcon = {
                                 Icon(
                                     Icons.Default.Badge,
                                     contentDescription = null,
-                                    tint = AuthPurplePrimary
+                                    tint = AuthLavenderPrimary
                                 )
                             },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AuthPurplePrimary,
-                                unfocusedBorderColor = AuthTextSecondary.copy(alpha = 0.3f)
+                                focusedBorderColor = AuthLavenderPrimary,
+                                unfocusedBorderColor = AuthLavenderAccent.copy(alpha = 0.5f),
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = AuthLavenderBackground
                             )
                         )
 
@@ -245,7 +277,7 @@ fun UnifiedAuthScreen(
                                 Icon(
                                     Icons.Default.Lock,
                                     contentDescription = null,
-                                    tint = AuthPurplePrimary
+                                    tint = AuthLavenderPrimary
                                 )
                             },
                             trailingIcon = {
@@ -262,8 +294,10 @@ fun UnifiedAuthScreen(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AuthPurplePrimary,
-                                unfocusedBorderColor = AuthTextSecondary.copy(alpha = 0.3f)
+                                focusedBorderColor = AuthLavenderPrimary,
+                                unfocusedBorderColor = AuthLavenderAccent.copy(alpha = 0.5f),
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = AuthLavenderBackground
                             )
                         )
 
@@ -275,18 +309,32 @@ fun UnifiedAuthScreen(
                                     isLoading = true
                                     errorMessage = null
 
-                                    val result = performLogin(
-                                        context = context,
-                                        registrationId = loginRegId,
-                                        password = loginPassword
-                                    )
-
-                                    isLoading = false
-
-                                    if (result.first != null) {
-                                        onLoginSuccess(result.first!!)
+                                    if (selectedRole == "patient") {
+                                        val result = performLogin(
+                                            context = context,
+                                            registrationId = loginRegId,
+                                            password = loginPassword
+                                        )
+                                        isLoading = false
+                                        if (result.first != null) {
+                                            onLoginSuccess(result.first!!)
+                                        } else {
+                                            errorMessage = result.second ?: "Login failed"
+                                        }
                                     } else {
-                                        errorMessage = result.second ?: "Login failed"
+                                        val result = performClinicianLogin(
+                                            context = context,
+                                            registrationId = loginRegId,
+                                            password = loginPassword
+                                        )
+                                        isLoading = false
+                                        if (result.first == true) {
+                                            navController.navigate(Screen.CLINICIAN_DASHBOARD) {
+                                                popUpTo(Screen.AUTH) { inclusive = true }
+                                            }
+                                        } else {
+                                            errorMessage = result.second ?: "Clinician login failed"
+                                        }
                                     }
                                 }
                             },
@@ -305,7 +353,7 @@ fun UnifiedAuthScreen(
                                     .fillMaxSize()
                                     .background(
                                         Brush.linearGradient(
-                                            colors = listOf(AuthPurplePrimary, AuthPurpleSecondary)
+                                            colors = listOf(AuthLavenderPrimary, AuthLavenderAccent)
                                         ),
                                         RoundedCornerShape(14.dp)
                                     ),
@@ -329,9 +377,8 @@ fun UnifiedAuthScreen(
                         }
                     }
                 }
-            }
-            // Signup Form
-            else {
+            } else {
+                // Signup Form (patient only)
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -347,20 +394,25 @@ fun UnifiedAuthScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text(
-                            "Create your account",
+                            "Patient Registration",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = AuthTextPrimary
                         )
 
-                        // Registration ID
                         OutlinedTextField(
                             value = signupRegId,
                             onValueChange = { signupRegId = it },
                             label = { Text("Registration ID / Roll Number *") },
-                            leadingIcon = { Icon(Icons.Default.Badge, null, tint = AuthPurplePrimary) },
+                            leadingIcon = { Icon(Icons.Default.Badge, null, tint = AuthLavenderPrimary) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AuthLavenderPrimary,
+                                unfocusedBorderColor = AuthLavenderAccent.copy(alpha = 0.5f),
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = AuthLavenderBackground
+                            ),
                             isError = signupRegId.isNotBlank() && signupRegId.length < 3,
                             supportingText = {
                                 if (signupRegId.isNotBlank() && signupRegId.length < 3) {
@@ -369,42 +421,55 @@ fun UnifiedAuthScreen(
                             }
                         )
 
-                        // Full Name
                         OutlinedTextField(
                             value = signupName,
                             onValueChange = { signupName = it },
                             label = { Text("Full Name *") },
-                            leadingIcon = { Icon(Icons.Default.Person, null, tint = AuthPurplePrimary) },
+                            leadingIcon = { Icon(Icons.Default.Person, null, tint = AuthLavenderPrimary) },
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AuthLavenderPrimary,
+                                unfocusedBorderColor = AuthLavenderAccent.copy(alpha = 0.5f),
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = AuthLavenderBackground
+                            )
                         )
 
-                        // Email
                         OutlinedTextField(
                             value = signupEmail,
                             onValueChange = { signupEmail = it },
                             label = { Text("Email *") },
-                            leadingIcon = { Icon(Icons.Default.Email, null, tint = AuthPurplePrimary) },
+                            leadingIcon = { Icon(Icons.Default.Email, null, tint = AuthLavenderPrimary) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AuthLavenderPrimary,
+                                unfocusedBorderColor = AuthLavenderAccent.copy(alpha = 0.5f),
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = AuthLavenderBackground
+                            )
                         )
 
-                        // Age
                         OutlinedTextField(
                             value = signupAge,
                             onValueChange = { signupAge = it },
                             label = { Text("Age *") },
-                            leadingIcon = { Icon(Icons.Default.Cake, null, tint = AuthPurplePrimary) },
+                            leadingIcon = { Icon(Icons.Default.Cake, null, tint = AuthLavenderPrimary) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AuthLavenderPrimary,
+                                unfocusedBorderColor = AuthLavenderAccent.copy(alpha = 0.5f),
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = AuthLavenderBackground
+                            )
                         )
 
-                        // Gender Dropdown
                         var expanded by remember { mutableStateOf(false) }
                         val genders = listOf("Male", "Female", "Other", "Prefer not to say")
-
                         ExposedDropdownMenuBox(
                             expanded = expanded,
                             onExpandedChange = { expanded = it }
@@ -414,12 +479,18 @@ fun UnifiedAuthScreen(
                                 onValueChange = {},
                                 readOnly = true,
                                 label = { Text("Gender *") },
-                                leadingIcon = { Icon(Icons.Default.Person, null, tint = AuthPurplePrimary) },
+                                leadingIcon = { Icon(Icons.Default.Person, null, tint = AuthLavenderPrimary) },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .menuAnchor(),
-                                shape = RoundedCornerShape(12.dp)
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = AuthLavenderPrimary,
+                                    unfocusedBorderColor = AuthLavenderAccent.copy(alpha = 0.5f),
+                                    focusedContainerColor = Color.White,
+                                    unfocusedContainerColor = AuthLavenderBackground
+                                )
                             )
                             ExposedDropdownMenu(
                                 expanded = expanded,
@@ -437,12 +508,11 @@ fun UnifiedAuthScreen(
                             }
                         }
 
-                        // Password
                         OutlinedTextField(
                             value = signupPassword,
                             onValueChange = { signupPassword = it },
                             label = { Text("Password *") },
-                            leadingIcon = { Icon(Icons.Default.Lock, null, tint = AuthPurplePrimary) },
+                            leadingIcon = { Icon(Icons.Default.Lock, null, tint = AuthLavenderPrimary) },
                             trailingIcon = {
                                 IconButton(onClick = { signupPasswordVisible = !signupPasswordVisible }) {
                                     Icon(
@@ -454,6 +524,12 @@ fun UnifiedAuthScreen(
                             visualTransformation = if (signupPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AuthLavenderPrimary,
+                                unfocusedBorderColor = AuthLavenderAccent.copy(alpha = 0.5f),
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = AuthLavenderBackground
+                            ),
                             isError = signupPassword.isNotBlank() && signupPassword.length < 6,
                             supportingText = {
                                 if (signupPassword.isNotBlank() && signupPassword.length < 6) {
@@ -462,15 +538,20 @@ fun UnifiedAuthScreen(
                             }
                         )
 
-                        // Confirm Password
                         OutlinedTextField(
                             value = signupConfirmPassword,
                             onValueChange = { signupConfirmPassword = it },
                             label = { Text("Confirm Password *") },
-                            leadingIcon = { Icon(Icons.Default.Lock, null, tint = AuthPurplePrimary) },
+                            leadingIcon = { Icon(Icons.Default.Lock, null, tint = AuthLavenderPrimary) },
                             visualTransformation = if (signupPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AuthLavenderPrimary,
+                                unfocusedBorderColor = AuthLavenderAccent.copy(alpha = 0.5f),
+                                focusedContainerColor = Color.White,
+                                unfocusedContainerColor = AuthLavenderBackground
+                            ),
                             isError = signupConfirmPassword.isNotBlank() && signupPassword != signupConfirmPassword,
                             supportingText = {
                                 if (signupConfirmPassword.isNotBlank() && signupPassword != signupConfirmPassword) {
@@ -481,11 +562,9 @@ fun UnifiedAuthScreen(
 
                         Spacer(modifier = Modifier.height(8.dp))
 
-                        // Signup Button
                         Button(
                             onClick = {
                                 scope.launch {
-                                    // Validate
                                     if (signupRegId.isBlank()) {
                                         errorMessage = "Registration ID is required"
                                         return@launch
@@ -531,7 +610,6 @@ fun UnifiedAuthScreen(
                                     isLoading = false
 
                                     if (result.first != null) {
-                                        // Auto login after signup
                                         val loginResult = performLogin(
                                             context = context,
                                             registrationId = signupRegId,
@@ -572,7 +650,7 @@ fun UnifiedAuthScreen(
                                     .fillMaxSize()
                                     .background(
                                         Brush.linearGradient(
-                                            colors = listOf(AuthSageGreen, AuthPurplePrimary)
+                                            colors = listOf(AuthLavenderPrimary, AuthLavenderAccent)
                                         ),
                                         RoundedCornerShape(14.dp)
                                     ),
@@ -609,32 +687,34 @@ fun UnifiedAuthScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Toggle between Login and Signup
-            Row(
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = if (isLoginMode) "Don't have an account? " else "Already have an account? ",
-                    color = AuthTextSecondary,
-                    fontSize = 14.sp
-                )
-                Text(
-                    text = if (isLoginMode) "Sign Up" else "Login",
-                    color = AuthPurplePrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.clickable {
-                        isLoginMode = !isLoginMode
-                        errorMessage = null
-                    }
-                )
+            // Toggle between Login and Signup (only for patient)
+            if (selectedRole == "patient") {
+                Row(
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = if (isLoginMode) "Don't have an account? " else "Already have an account? ",
+                        color = AuthTextSecondary,
+                        fontSize = 14.sp
+                    )
+                    Text(
+                        text = if (isLoginMode) "Sign Up" else "Login",
+                        color = AuthLavenderPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clickable {
+                            isLoginMode = !isLoginMode
+                            errorMessage = null
+                        }
+                    )
+                }
             }
         }
     }
 }
 
-// ============ API FUNCTIONS ============
+// ==================== API FUNCTIONS ====================
 
 suspend fun performLogin(
     context: Context,
@@ -698,6 +778,70 @@ suspend fun performLogin(
     }
 }
 
+suspend fun performClinicianLogin(
+    context: Context,
+    registrationId: String,
+    password: String
+): Pair<Boolean?, String?> {
+    return withContext(Dispatchers.IO) {
+        try {
+            val url = URL("http://203.110.243.202:8000/login-clinician")
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "POST"
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.doOutput = true
+            connection.connectTimeout = 15000
+            connection.readTimeout = 15000
+
+            val requestBody = JSONObject().apply {
+                put("registration_id", registrationId)
+                put("password", password)
+            }
+
+            connection.outputStream.use { os ->
+                os.write(requestBody.toString().toByteArray())
+            }
+
+            val responseCode = connection.responseCode
+            val response = if (responseCode == 200) {
+                connection.inputStream.bufferedReader().use { it.readText() }
+            } else {
+                connection.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
+            }
+            connection.disconnect()
+
+            if (responseCode == 200) {
+                val json = JSONObject(response)
+                val success = json.optBoolean("success", false)
+                if (success) {
+                    val userId = json.getString("user_id")
+                    val token = json.getString("token")
+                    val name = json.getString("name")
+                    val regId = json.getString("registration_id")
+
+                    // Save clinician session (you can use UserPreferences or separate SharedPreferences)
+                    val prefs = context.getSharedPreferences("clinician_session", Context.MODE_PRIVATE)
+                    prefs.edit().apply {
+                        putBoolean("is_logged_in", true)
+                        putString("registration_id", regId)
+                        putString("name", name)
+                        putString("user_id", userId)
+                        putString("token", token)
+                        apply()
+                    }
+                    return@withContext Pair(true, null)
+                } else {
+                    return@withContext Pair(null, "Clinician login failed")
+                }
+            } else {
+                return@withContext Pair(null, "Invalid credentials")
+            }
+        } catch (e: Exception) {
+            return@withContext Pair(null, "Connection failed: ${e.message}")
+        }
+    }
+}
+
 suspend fun performSignup(
     registrationId: String,
     password: String,
@@ -716,7 +860,6 @@ suspend fun performSignup(
             connection.connectTimeout = 15000
             connection.readTimeout = 15000
 
-            // Build request body matching server expectations – include optional fields as null
             val requestBody = JSONObject().apply {
                 put("registration_id", registrationId)
                 put("password", password)
@@ -724,8 +867,7 @@ suspend fun performSignup(
                 put("gender", gender)
                 put("email", email)
                 put("age", age)
-                put("roll_no", registrationId)          // Use registration_id as roll_no
-                // Optional fields – explicitly set to null to avoid validation errors
+                put("roll_no", registrationId)
                 put("phone_no", JSONObject.NULL)
                 put("is_underage", false)
                 put("parent_name", JSONObject.NULL)
@@ -757,7 +899,6 @@ suspend fun performSignup(
                 )
                 return@withContext Pair(profile, null)
             } else {
-                // Extract meaningful error message
                 val errorMsg = try {
                     val json = JSONObject(response)
                     json.optString("detail", json.optString("message", response))
@@ -793,7 +934,6 @@ fun saveUserSession(
         apply()
     }
 
-    // Also save to user_prefs for backward compatibility
     val userPrefs = context.getSharedPreferences("user_prefs", Context.MODE_PRIVATE)
     userPrefs.edit().apply {
         putString("registration_id", registrationId)

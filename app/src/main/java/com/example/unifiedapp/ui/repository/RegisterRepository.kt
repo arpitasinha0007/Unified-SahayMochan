@@ -1,6 +1,6 @@
 package com.example.unifiedapp.ui.repository
 
-import com.example.unifiedapp.ui.remote.AuthApi
+import com.example.unifiedapp.remote.AuthApi
 import com.example.unifiedapp.ui.views.AssessmentListResponse
 import com.example.unifiedapp.ui.views.AssessmentListState
 import com.example.unifiedapp.ui.views.DeleteAllUserResponse

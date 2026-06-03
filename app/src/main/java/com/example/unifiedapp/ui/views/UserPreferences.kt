@@ -6,9 +6,6 @@ import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
-// Remove this line: import kotlinx.serialization.Serializable
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.core.booleanPreferencesKey
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -30,10 +27,10 @@ class UserPreferences(context: Context) {
         val TOKEN = stringPreferencesKey("token")
         val USER_ID = stringPreferencesKey("user_id")
 
-        // Phone number - NEW
+        // Phone number
         val PHONE_NUMBER = stringPreferencesKey("phone_number")
 
-        // Underage support - NEW
+        // Underage support
         val IS_UNDERAGE = booleanPreferencesKey("is_underage")
         val PARENT_NAME = stringPreferencesKey("parent_name")
         val PARENT_EMAIL = stringPreferencesKey("parent_email")
@@ -44,12 +41,19 @@ class UserPreferences(context: Context) {
         val TOTAL_DEPRESSION_TRIALS = intPreferencesKey("total_depression_trials")
         val TOTAL_ANXIETY_TRIALS = intPreferencesKey("total_anxiety_trials")
 
+        // Clinician session keys
+        val IS_CLINICIAN_LOGGED_IN = booleanPreferencesKey("is_clinician_logged_in")
+        val CLINICIAN_REGISTRATION_ID = stringPreferencesKey("clinician_registration_id")
+        val CLINICIAN_NAME = stringPreferencesKey("clinician_name")
+        val CLINICIAN_USER_ID = stringPreferencesKey("clinician_user_id")
+        val CLINICIAN_TOKEN = stringPreferencesKey("clinician_token")
+
         // Legacy keys for migration
         val LEGACY_REGISTRATION_ID = stringPreferencesKey("registration_id")
         val LEGACY_STUDENT_ID = stringPreferencesKey("student_id")
     }
 
-    // User data flow with all fields
+    // Patient data flow
     val userData: Flow<UserData> = dataStore.data.map { prefs ->
         UserData(
             isLoggedIn = prefs[IS_LOGGED_IN] ?: false,
@@ -60,13 +64,10 @@ class UserPreferences(context: Context) {
             id = prefs[REGISTRATION_ID] ?: "",
             TOKEN = prefs[TOKEN] ?: "",
             userId = prefs[USER_ID] ?: "",
-            // Phone number - NEW
             phoneNumber = prefs[PHONE_NUMBER] ?: "",
-            // Underage fields
             isUnderage = prefs[IS_UNDERAGE] ?: false,
             parentName = prefs[PARENT_NAME] ?: "",
             parentEmail = prefs[PARENT_EMAIL] ?: "",
-            // Trial fields
             depressionTrialsRemaining = prefs[DEPRESSION_TRIALS_REMAINING] ?: 3,
             anxietyTrialsRemaining = prefs[ANXIETY_TRIALS_REMAINING] ?: 3,
             totalDepressionTrials = prefs[TOTAL_DEPRESSION_TRIALS] ?: 3,
@@ -74,72 +75,60 @@ class UserPreferences(context: Context) {
         )
     }
 
-    // Flow for registration ID (with legacy support)
-    val registrationId: Flow<String?> = dataStore.data
-        .map { prefs ->
-            val id = prefs[REGISTRATION_ID]
-                ?: prefs[LEGACY_REGISTRATION_ID]
-                ?: prefs[LEGACY_STUDENT_ID]
-            Log.d("AUTH_DEBUG", "registrationId flow emitting = '$id'")
-            id
-        }
-
-    // Flow for user ID
-    val userId: Flow<String?> = dataStore.data.map { prefs ->
-        prefs[USER_ID]
+    val registrationId: Flow<String?> = dataStore.data.map { prefs ->
+        prefs[REGISTRATION_ID] ?: prefs[LEGACY_REGISTRATION_ID] ?: prefs[LEGACY_STUDENT_ID]
     }
 
-    // Flow for underage status
-    val isUnderage: Flow<Boolean> = dataStore.data.map { prefs ->
-        prefs[IS_UNDERAGE] ?: false
-    }
-
-    // Flow for parent info
+    val userId: Flow<String?> = dataStore.data.map { prefs -> prefs[USER_ID] }
+    val isUnderage: Flow<Boolean> = dataStore.data.map { prefs -> prefs[IS_UNDERAGE] ?: false }
     val parentInfo: Flow<Pair<String, String>> = dataStore.data.map { prefs ->
-        Pair(
-            prefs[PARENT_NAME] ?: "",
-            prefs[PARENT_EMAIL] ?: ""
-        )
+        Pair(prefs[PARENT_NAME] ?: "", prefs[PARENT_EMAIL] ?: "")
+    }
+    val phoneNumber: Flow<String?> = dataStore.data.map { prefs -> prefs[PHONE_NUMBER] }
+
+    // Clinician session flows
+    val isClinicianLoggedIn: Flow<Boolean> = dataStore.data.map { prefs -> prefs[IS_CLINICIAN_LOGGED_IN] ?: false }
+    val clinicianRegistrationId: Flow<String?> = dataStore.data.map { prefs -> prefs[CLINICIAN_REGISTRATION_ID] }
+    val clinicianName: Flow<String?> = dataStore.data.map { prefs -> prefs[CLINICIAN_NAME] }
+    val clinicianUserId: Flow<String?> = dataStore.data.map { prefs -> prefs[CLINICIAN_USER_ID] }
+    val clinicianToken: Flow<String?> = dataStore.data.map { prefs -> prefs[CLINICIAN_TOKEN] }
+
+    // Synchronous getters
+    suspend fun getRegistrationId(): String? = dataStore.data.first().let {
+        it[REGISTRATION_ID] ?: it[LEGACY_REGISTRATION_ID] ?: it[LEGACY_STUDENT_ID]
+    }
+    suspend fun getUserId(): String? = dataStore.data.first()[USER_ID]
+    suspend fun isUserUnderage(): Boolean = dataStore.data.first()[IS_UNDERAGE] ?: false
+    suspend fun getParentEmail(): String? = dataStore.data.first()[PARENT_EMAIL]
+    suspend fun getPhoneNumber(): String? = dataStore.data.first()[PHONE_NUMBER]
+    suspend fun getClinicianRegistrationId(): String? = dataStore.data.first()[CLINICIAN_REGISTRATION_ID]
+    suspend fun getClinicianUserId(): String? = dataStore.data.first()[CLINICIAN_USER_ID]
+    suspend fun getClinicianToken(): String? = dataStore.data.first()[CLINICIAN_TOKEN]
+
+    suspend fun saveClinicianSession(registrationId: String, name: String, userId: String, token: String) {
+        withContext(Dispatchers.IO) {
+            dataStore.edit { prefs ->
+                prefs[IS_CLINICIAN_LOGGED_IN] = true
+                prefs[CLINICIAN_REGISTRATION_ID] = registrationId
+                prefs[CLINICIAN_NAME] = name
+                prefs[CLINICIAN_USER_ID] = userId
+                prefs[CLINICIAN_TOKEN] = token
+            }
+        }
     }
 
-    // Flow for phone number - NEW
-    val phoneNumber: Flow<String?> = dataStore.data.map { prefs ->
-        prefs[PHONE_NUMBER]
+    suspend fun clearClinicianSession() {
+        withContext(Dispatchers.IO) {
+            dataStore.edit { prefs ->
+                prefs.remove(IS_CLINICIAN_LOGGED_IN)
+                prefs.remove(CLINICIAN_REGISTRATION_ID)
+                prefs.remove(CLINICIAN_NAME)
+                prefs.remove(CLINICIAN_USER_ID)
+                prefs.remove(CLINICIAN_TOKEN)
+            }
+        }
     }
 
-    // Get registration ID synchronously
-    suspend fun getRegistrationId(): String? {
-        val prefs = dataStore.data.first()
-        return prefs[REGISTRATION_ID]
-            ?: prefs[LEGACY_REGISTRATION_ID]
-            ?: prefs[LEGACY_STUDENT_ID]
-    }
-
-    // Get user ID synchronously
-    suspend fun getUserId(): String? {
-        val prefs = dataStore.data.first()
-        return prefs[USER_ID]
-    }
-
-    // Get underage status synchronously
-    suspend fun isUserUnderage(): Boolean {
-        val prefs = dataStore.data.first()
-        return prefs[IS_UNDERAGE] ?: false
-    }
-
-    // Get parent email synchronously
-    suspend fun getParentEmail(): String? {
-        val prefs = dataStore.data.first()
-        return prefs[PARENT_EMAIL]
-    }
-
-    // Get phone number synchronously - NEW
-    suspend fun getPhoneNumber(): String? {
-        val prefs = dataStore.data.first()
-        return prefs[PHONE_NUMBER]
-    }
-
-    // Login function - saves all user data including phone number
     suspend fun login(
         name: String,
         email: String,
@@ -158,14 +147,7 @@ class UserPreferences(context: Context) {
         totalAnxietyTrials: Int = 3
     ) {
         withContext(Dispatchers.IO) {
-            Log.d("AUTH_DEBUG", "========== SAVING TO PREFS ==========")
-            Log.d("AUTH_DEBUG", "isUnderage: $isUnderage")
-            Log.d("AUTH_DEBUG", "parentName: '$parentName'")
-            Log.d("AUTH_DEBUG", "parentEmail: '$parentEmail'")
-            Log.d("AUTH_DEBUG", "phoneNumber: '$phoneNumber'")
-
             dataStore.edit { prefs ->
-                // Basic info
                 prefs[IS_LOGGED_IN] = true
                 prefs[NAME] = name
                 prefs[EMAIL] = email
@@ -173,49 +155,28 @@ class UserPreferences(context: Context) {
                 prefs[REGISTRATION_ID] = id
                 prefs[AGE] = age
                 prefs[TOKEN] = token
-
-                // Phone number - Handle nullable
-                if (!phoneNumber.isNullOrBlank()) {
-                    prefs[PHONE_NUMBER] = phoneNumber
-                } else {
-                    prefs.remove(PHONE_NUMBER)
-                }
-
-                if (userId != null) {
-                    prefs[USER_ID] = userId
-                }
-
-                // Underage info
+                if (!phoneNumber.isNullOrBlank()) prefs[PHONE_NUMBER] = phoneNumber else prefs.remove(PHONE_NUMBER)
+                userId?.let { prefs[USER_ID] = it }
                 prefs[IS_UNDERAGE] = isUnderage
-
                 if (isUnderage && parentName.isNotBlank()) {
                     prefs[PARENT_NAME] = parentName
                     prefs[PARENT_EMAIL] = parentEmail
-                    Log.d("AUTH_DEBUG", "✅ Saved parent info to prefs")
                 } else {
                     prefs.remove(PARENT_NAME)
                     prefs.remove(PARENT_EMAIL)
-                    Log.d("AUTH_DEBUG", "Not saving parent info - isUnderage: $isUnderage, parentName blank: ${parentName.isBlank()}")
                 }
-
-                // Trial info
                 prefs[DEPRESSION_TRIALS_REMAINING] = depressionTrialsRemaining
                 prefs[ANXIETY_TRIALS_REMAINING] = anxietyTrialsRemaining
                 prefs[TOTAL_DEPRESSION_TRIALS] = totalDepressionTrials
                 prefs[TOTAL_ANXIETY_TRIALS] = totalAnxietyTrials
             }
-
-            // Verify save
-            val saved = getCurrentUser()
-            Log.d("AUTH_DEBUG", "Verification after save - phoneNumber: '${saved.phoneNumber}', parentName: '${saved.parentName}', parentEmail: '${saved.parentEmail}'")
         }
     }
 
-    // Update trial counts
-    suspend fun updateTrialCounts(
-        anxietyTrialsRemaining: Int? = null,
-        depressionTrialsRemaining: Int? = null
-    ) {
+    suspend fun loginClinician(registrationId: String, name: String, userId: String, token: String) =
+        saveClinicianSession(registrationId, name, userId, token)
+
+    suspend fun updateTrialCounts(anxietyTrialsRemaining: Int? = null, depressionTrialsRemaining: Int? = null) {
         withContext(Dispatchers.IO) {
             dataStore.edit { prefs ->
                 anxietyTrialsRemaining?.let { prefs[ANXIETY_TRIALS_REMAINING] = it }
@@ -224,54 +185,23 @@ class UserPreferences(context: Context) {
         }
     }
 
-    // Update parent info (if needed)
     suspend fun updateParentInfo(parentName: String, parentEmail: String) {
-        withContext(Dispatchers.IO) {
-            dataStore.edit { prefs ->
-                prefs[PARENT_NAME] = parentName
-                prefs[PARENT_EMAIL] = parentEmail
-            }
-        }
+        withContext(Dispatchers.IO) { dataStore.edit { prefs -> prefs[PARENT_NAME] = parentName; prefs[PARENT_EMAIL] = parentEmail } }
     }
 
-    // Update phone number - NEW
     suspend fun updatePhoneNumber(phoneNumber: String) {
-        withContext(Dispatchers.IO) {
-            dataStore.edit { prefs ->
-                prefs[PHONE_NUMBER] = phoneNumber
-            }
-            Log.d("AUTH_DEBUG", "Updated phone number: $phoneNumber")
-        }
+        withContext(Dispatchers.IO) { dataStore.edit { prefs -> prefs[PHONE_NUMBER] = phoneNumber } }
     }
 
-    // Logout - clear all data
-    suspend fun forceLogout() {
-        withContext(Dispatchers.IO) {
-            dataStore.edit { prefs ->
-                prefs.clear()
-            }
-            Log.d("AUTH_DEBUG", "User force logged out, all preferences cleared")
-        }
-    }
-
-    // Also fix the existing logout method
     suspend fun logout() {
-        withContext(Dispatchers.IO) {
-            dataStore.edit { prefs ->
-                // Clear all keys
-                prefs.clear()
-            }
-            Log.d("AUTH_DEBUG", "User logged out, all preferences cleared")
-        }
+        withContext(Dispatchers.IO) { dataStore.edit { it.clear() } }
     }
 
-    // Check if user is logged in
-    suspend fun isLoggedIn(): Boolean {
-        val prefs = dataStore.data.first()
-        return prefs[IS_LOGGED_IN] ?: false
-    }
+    suspend fun forceLogout() = logout()
 
-    // Get current user data synchronously
+    suspend fun isLoggedIn(): Boolean = dataStore.data.first()[IS_LOGGED_IN] ?: false
+    suspend fun isClinicianLoggedIn(): Boolean = dataStore.data.first()[IS_CLINICIAN_LOGGED_IN] ?: false
+
     suspend fun getCurrentUser(): UserData {
         val prefs = dataStore.data.first()
         return UserData(
@@ -294,7 +224,17 @@ class UserPreferences(context: Context) {
         )
     }
 
-    // Clear specific user data (for debugging)
+    suspend fun getCurrentClinician(): ClinicianData {
+        val prefs = dataStore.data.first()
+        return ClinicianData(
+            isLoggedIn = prefs[IS_CLINICIAN_LOGGED_IN] ?: false,
+            registrationId = prefs[CLINICIAN_REGISTRATION_ID] ?: "",
+            name = prefs[CLINICIAN_NAME] ?: "",
+            userId = prefs[CLINICIAN_USER_ID] ?: "",
+            token = prefs[CLINICIAN_TOKEN] ?: ""
+        )
+    }
+
     suspend fun clearUserData() {
         withContext(Dispatchers.IO) {
             dataStore.edit { prefs ->
@@ -310,12 +250,16 @@ class UserPreferences(context: Context) {
                 prefs.remove(IS_UNDERAGE)
                 prefs.remove(PARENT_NAME)
                 prefs.remove(PARENT_EMAIL)
+                prefs.remove(IS_CLINICIAN_LOGGED_IN)
+                prefs.remove(CLINICIAN_REGISTRATION_ID)
+                prefs.remove(CLINICIAN_NAME)
+                prefs.remove(CLINICIAN_USER_ID)
+                prefs.remove(CLINICIAN_TOKEN)
             }
         }
     }
 }
 
-// Updated UserData class with all fields including phone number
 data class UserData(
     val isLoggedIn: Boolean,
     val name: String,
@@ -325,20 +269,24 @@ data class UserData(
     val id: String,
     val TOKEN: String,
     val userId: String = "",
-    // Phone number - NEW
     val phoneNumber: String? = null,
-    // Underage support
     val isUnderage: Boolean = false,
     val parentName: String = "",
     val parentEmail: String = "",
-    // Trial tracking
     val depressionTrialsRemaining: Int = 3,
     val anxietyTrialsRemaining: Int = 3,
     val totalDepressionTrials: Int = 3,
     val totalAnxietyTrials: Int = 3
 )
 
-// REMOVE @Serializable - you don't need it
+data class ClinicianData(
+    val isLoggedIn: Boolean,
+    val registrationId: String,
+    val name: String,
+    val userId: String,
+    val token: String
+)
+
 data class QuizReportDto(
     val email: String,
     val name: String,

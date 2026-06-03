@@ -48,6 +48,7 @@ import com.example.unifiedapp.utils.ReportDownloadHelper
 import com.example.unifiedapp.utils.UploadHelper
 import com.example.unifiedapp.utils.UserSessionHelper
 import com.example.unifiedapp.utils.generateAnonymousId
+import com.example.unifiedapp.utils.TrialHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -143,7 +144,6 @@ fun ResultScreen(
     val session = UserSessionHelper.getUserData(context)
     var anonymousId = session.anonymousId
     if (anonymousId.isBlank()) {
-        // Fallback: generate from registration ID or name
         anonymousId = generateAnonymousId(session.name, session.registrationId)
         Log.w("ResultScreen", "Anonymous ID was blank, using fallback: $anonymousId")
     }
@@ -152,6 +152,26 @@ fun ResultScreen(
     val userAge = session.age
     val userGender = session.gender
     val registrationId = session.registrationId
+
+    // ========== TRIAL DECREMENT ==========
+    // Decrement the appropriate trial when the result screen is first shown
+    LaunchedEffect(Unit) {
+        if (registrationId.isNotBlank()) {
+            try {
+                if (assessmentType == "depression") {
+                    val success = TrialHelper.useDepressionTrial(registrationId)
+                    Log.d("TRIAL", "Depression trial decrement: ${if (success) "success" else "failed"}")
+                } else {
+                    val success = TrialHelper.useAnxietyTrial(registrationId)
+                    Log.d("TRIAL", "Anxiety trial decrement: ${if (success) "success" else "failed"}")
+                }
+            } catch (e: Exception) {
+                Log.e("TRIAL", "Error decrementing trial", e)
+            }
+        } else {
+            Log.e("TRIAL", "Cannot decrement trial: registrationId is blank")
+        }
+    }
 
     // AI prediction data (same as before)
     val aiScore = prefs.getInt("ai_prediction_score", -1)
@@ -296,6 +316,19 @@ fun ResultScreen(
     }
 }
 
+// ============ ALL OTHER COMPOSABLES REMAIN UNCHANGED ============
+// (UploadDataButton, UploadProgressCard, UploadSuccessCard, startUpload, UploadStatus, UploadErrorCard,
+//  UserInfoCard, InfoChipEnhanced, EnhancedAssessmentCard, EnhancedRecommendationsCard, EnhancedRecommendationItem,
+//  DownloadReportButton, AssessmentHeader, EnhancedSetuPromoCard, EnhancedWellnessToolsCard, ToolItemEnhanced,
+//  FeaturePill, getSeverityDataFromScore, getSeverityDataFromClass, etc.)
+
+// → Keep all the existing helper composables exactly as they were in your original file.
+// For brevity, they are not repeated here – but they must be present in your final file.
+
+// ============ NOTE ============
+// Make sure to include all the existing composables (UploadDataButton, UploadProgressCard, etc.)
+// from your current ResultScreen.kt. The code above only shows the main ResultScreen function
+// with the added trial decrement. All other helper functions must remain exactly as you had them.
 // ============ THE REST OF YOUR COMPOSABLES (UploadDataButton, UserInfoCard, etc.) ============
 // → These remain exactly as they were in your original file.
 // → I am not repeating them here – they are unchanged.

@@ -20,12 +20,10 @@ object TrialHelper {
         val message: String = ""
     )
 
-    /**
-     * Fetch full trial information for a user.
-     */
     suspend fun getTrialsInfo(registrationId: String): TrialsInfo? {
         return withContext(Dispatchers.IO) {
             try {
+                Log.d(TAG, "getTrialsInfo for: $registrationId")
                 val url = URL("$BASE_URL/api/trials/$registrationId")
                 val connection = url.openConnection() as HttpURLConnection
                 connection.requestMethod = "GET"
@@ -36,6 +34,7 @@ object TrialHelper {
                 val responseCode = connection.responseCode
                 if (responseCode == 200) {
                     val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    Log.d(TAG, "getTrialsInfo response: $response")
                     val json = JSONObject(response)
                     if (json.optBoolean("success", false)) {
                         return@withContext TrialsInfo(
@@ -48,18 +47,15 @@ object TrialHelper {
                         )
                     }
                 }
+                Log.e(TAG, "getTrialsInfo failed, code: $responseCode")
                 return@withContext null
             } catch (e: Exception) {
-                Log.e(TAG, "Error fetching trials: ${e.message}")
+                Log.e(TAG, "Error fetching trials: ${e.message}", e)
                 return@withContext null
             }
         }
     }
 
-    /**
-     * Get remaining depression trials for a user.
-     * Returns the number of remaining trials or 0 if error.
-     */
     suspend fun getRemainingDepressionTrials(registrationId: String): Int {
         return withContext(Dispatchers.IO) {
             try {
@@ -86,10 +82,37 @@ object TrialHelper {
         }
     }
 
-    /**
-     * Check if user has remaining depression trials.
-     * Returns true if can proceed, false otherwise.
-     */
+    suspend fun getRemainingAnxietyTrials(registrationId: String): Int {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "getRemainingAnxietyTrials for: $registrationId")
+                val url = URL("$BASE_URL/api/trials/$registrationId")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.setRequestProperty("Accept", "application/json")
+                connection.connectTimeout = 10000
+                connection.readTimeout = 10000
+
+                val responseCode = connection.responseCode
+                if (responseCode == 200) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    Log.d(TAG, "getRemainingAnxietyTrials response: $response")
+                    val json = JSONObject(response)
+                    if (json.optBoolean("success", false)) {
+                        val remaining = json.optInt("anxiety_trials_remaining", 0)
+                        Log.d(TAG, "Remaining anxiety trials: $remaining")
+                        return@withContext remaining
+                    }
+                }
+                Log.e(TAG, "getRemainingAnxietyTrials failed, code: $responseCode")
+                return@withContext 0
+            } catch (e: Exception) {
+                Log.e(TAG, "Error getting remaining anxiety trials: ${e.message}")
+                return@withContext 0
+            }
+        }
+    }
+
     suspend fun checkDepressionTrials(registrationId: String): Boolean {
         return withContext(Dispatchers.IO) {
             try {
@@ -104,20 +127,49 @@ object TrialHelper {
                 if (responseCode == 200) {
                     val response = connection.inputStream.bufferedReader().use { it.readText() }
                     val json = JSONObject(response)
-                    json.optBoolean("can_proceed", false)
+                    return@withContext json.optBoolean("can_proceed", false)
                 } else {
-                    false
+                    Log.e(TAG, "checkDepressionTrials HTTP $responseCode")
+                    return@withContext false
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error checking depression trials: ${e.message}")
-                false
+                Log.e(TAG, "checkDepressionTrials error", e)
+                return@withContext false
             }
         }
     }
 
-    /**
-     * Consume one depression trial when the user views the result screen.
-     */
+    suspend fun checkAnxietyTrials(registrationId: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "checkAnxietyTrials for registrationId: $registrationId")
+                val url = URL("$BASE_URL/api/trials/check/$registrationId?assessment_type=anxiety")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.setRequestProperty("Accept", "application/json")
+                connection.connectTimeout = 10000
+                connection.readTimeout = 10000
+
+                val responseCode = connection.responseCode
+                Log.d(TAG, "checkAnxietyTrials response code: $responseCode")
+                if (responseCode == 200) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    Log.d(TAG, "checkAnxietyTrials raw response: $response")
+                    val json = JSONObject(response)
+                    val canProceed = json.optBoolean("can_proceed", false)
+                    Log.d(TAG, "can_proceed = $canProceed")
+                    return@withContext canProceed
+                } else {
+                    Log.e(TAG, "checkAnxietyTrials HTTP $responseCode")
+                    return@withContext false
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "checkAnxietyTrials error", e)
+                return@withContext false
+            }
+        }
+    }
+
     suspend fun useDepressionTrial(registrationId: String, assessmentId: String? = null): Boolean {
         return withContext(Dispatchers.IO) {
             try {
@@ -144,13 +196,62 @@ object TrialHelper {
                 if (responseCode == 200) {
                     val response = connection.inputStream.bufferedReader().use { it.readText() }
                     val json = JSONObject(response)
-                    json.optBoolean("success", false)
+                    return@withContext json.optBoolean("success", false)
                 } else {
-                    false
+                    Log.e(TAG, "useDepressionTrial HTTP $responseCode")
+                    return@withContext false
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error using depression trial: ${e.message}")
-                false
+                Log.e(TAG, "useDepressionTrial error", e)
+                return@withContext false
+            }
+        }
+    }
+
+    suspend fun useAnxietyTrial(registrationId: String, assessmentId: String? = null): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                Log.d(TAG, "useAnxietyTrial for registrationId: $registrationId")
+                val url = URL("$BASE_URL/api/trials/use-trial")
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "POST"
+                connection.setRequestProperty("Content-Type", "application/json")
+                connection.setRequestProperty("Accept", "application/json")
+                connection.doOutput = true
+                connection.connectTimeout = 10000
+                connection.readTimeout = 10000
+
+                val requestBody = JSONObject().apply {
+                    put("registration_id", registrationId)
+                    put("assessment_type", "anxiety")
+                    assessmentId?.let { put("assessment_id", it) }
+                }
+
+                Log.d(TAG, "useAnxietyTrial request body: $requestBody")
+                connection.outputStream.use { os ->
+                    os.write(requestBody.toString().toByteArray())
+                }
+
+                val responseCode = connection.responseCode
+                Log.d(TAG, "useAnxietyTrial response code: $responseCode")
+                if (responseCode == 200) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    Log.d(TAG, "useAnxietyTrial response: $response")
+                    val json = JSONObject(response)
+                    val success = json.optBoolean("success", false)
+                    Log.d(TAG, "Success = $success")
+                    if (!success) {
+                        Log.e(TAG, "Server returned success=false, message: ${json.optString("message")}")
+                    }
+                    return@withContext success
+                } else {
+                    val errorBody = connection.errorStream?.bufferedReader()?.use { it.readText() }
+                    Log.e(TAG, "useAnxietyTrial HTTP $responseCode, error: $errorBody")
+                    return@withContext false
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "useAnxietyTrial error", e)
+                return@withContext false
             }
         }
     }

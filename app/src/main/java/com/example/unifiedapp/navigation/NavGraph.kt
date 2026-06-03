@@ -12,6 +12,10 @@ import androidx.navigation.navArgument
 import com.example.unifiedapp.screens.*
 import com.example.unifiedapp.ui.auth.UnifiedAuthScreen
 import com.example.unifiedapp.ui.auth.UserProfile
+import com.example.unifiedapp.ui.clinical.ClinicianDashboardScreen
+import com.example.unifiedapp.ui.clinical.HamAQuestionnaireScreen
+import com.example.unifiedapp.ui.clinical.HdrSQuestionnaireScreen
+import com.example.unifiedapp.ui.clinical.ClinicalResultScreen
 import com.example.unifiedapp.ui.views.CameraViewModel
 
 object Screen {
@@ -50,16 +54,19 @@ object Screen {
     const val PRIVACY_POLICY = "privacy_policy"
     const val TERMS_CONDITIONS = "terms_conditions"
 
-    // ✅ Removed unused: CONSENT, ASSESSMENT, RESULT, LOGIN, REGISTER
+    // ✅ Clinician routes
+    const val CLINICIAN_DASHBOARD = "clinician_dashboard"
+    const val HAM_A_ASSESSMENT = "ham_a_assessment/{patientId}/{patientName}"
+    const val HDRS_ASSESSMENT = "hdrs_assessment/{patientId}/{patientName}"
+    const val CLINICAL_RESULT = "clinical_result/{score}/{severity}/{type}"
 }
 
 @Composable
 fun UnifiedNavGraph(
     navController: NavHostController,
-    startDestination: String = Screen.AUTH   // ← changed from LAUNCHER to AUTH
+    startDestination: String = Screen.AUTH
 ) {
     val context = LocalContext.current
-
     val cameraViewModel = remember { CameraViewModel() }
     LaunchedEffect(Unit) {
         cameraViewModel.init(context.applicationContext)
@@ -69,7 +76,7 @@ fun UnifiedNavGraph(
         navController = navController,
         startDestination = startDestination
     ) {
-        // Launcher – still kept but will not be shown unless navigated manually (optional)
+        // Launcher
         composable(Screen.LAUNCHER) {
             LauncherScreen(navController = navController)
         }
@@ -80,18 +87,15 @@ fun UnifiedNavGraph(
                 navController = navController,
                 onLoginSuccess = { userProfile: UserProfile ->
                     navController.navigate(Screen.DASHBOARD) {
-                        popUpTo(Screen.AUTH) { inclusive = true }   // ← changed from LAUNCHER to AUTH
+                        popUpTo(Screen.AUTH) { inclusive = true }
                     }
                 }
             )
         }
 
-        // Main dashboard with bottom bar
+        // Patient dashboard
         composable(Screen.DASHBOARD) {
-            DashboardScreen(
-                navController = navController,
-                onLogout = { }
-            )
+            DashboardScreen(navController = navController, onLogout = { })
         }
 
         // ========== SAHAY (Anxiety) Flow ==========
@@ -176,10 +180,7 @@ fun UnifiedNavGraph(
 
         // ========== Profile & Data Management ==========
         composable(Screen.PROFILE) {
-            ProfileScreen(
-                navController = navController,
-                onBack = { navController.popBackStack() }
-            )
+            ProfileScreen(navController = navController, onBack = { navController.popBackStack() })
         }
         composable(Screen.PRIVACY_DATA) {
             PrivacyDataScreen(navController = navController)
@@ -214,6 +215,62 @@ fun UnifiedNavGraph(
         }
         composable(Screen.TERMS_CONDITIONS) {
             TermsAndConditionsPopup(onDismiss = { navController.popBackStack() })
+        }
+
+        // ========== CLINICIAN ROUTES ==========
+        composable(Screen.CLINICIAN_DASHBOARD) {
+            ClinicianDashboardScreen(navController = navController)
+        }
+
+        composable(
+            route = Screen.HAM_A_ASSESSMENT,
+            arguments = listOf(
+                navArgument("patientId") { type = NavType.StringType },
+                navArgument("patientName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val patientId = backStackEntry.arguments?.getString("patientId") ?: ""
+            val patientName = backStackEntry.arguments?.getString("patientName") ?: ""
+            HamAQuestionnaireScreen(
+                navController = navController,
+                patientId = patientId,
+                patientName = patientName
+            )
+        }
+
+        composable(
+            route = Screen.HDRS_ASSESSMENT,
+            arguments = listOf(
+                navArgument("patientId") { type = NavType.StringType },
+                navArgument("patientName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val patientId = backStackEntry.arguments?.getString("patientId") ?: ""
+            val patientName = backStackEntry.arguments?.getString("patientName") ?: ""
+            HdrSQuestionnaireScreen(
+                navController = navController,
+                patientId = patientId,
+                patientName = patientName
+            )
+        }
+
+        composable(
+            route = Screen.CLINICAL_RESULT,
+            arguments = listOf(
+                navArgument("score") { type = NavType.IntType },
+                navArgument("severity") { type = NavType.StringType },
+                navArgument("type") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val score = backStackEntry.arguments?.getInt("score") ?: 0
+            val severity = backStackEntry.arguments?.getString("severity") ?: ""
+            val type = backStackEntry.arguments?.getString("type") ?: ""
+            ClinicalResultScreen(
+                navController = navController,
+                score = score,
+                severity = severity,
+                type = type
+            )
         }
     }
 }

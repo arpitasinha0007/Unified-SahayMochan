@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,7 +45,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import androidx.compose.foundation.clickable
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -57,6 +57,49 @@ val UnderageCharcoal = Color(0xFF3E4E42)
 val UnderageWhiteSoft = Color(0xFFFAFAFA)
 val UnderageMutedSlate = Color(0xFF5D6D66)
 val UnderageSuccessGreen = Color(0xFF4CAF50)
+
+// ========== Helper functions for severity (copied from ResultScreen) ==========
+enum class SeverityLevelUnderage { MILD, MODERATE, SEVERE }
+
+fun getOverallSeverity(gad7Score: Int, aiPrediction: String): SeverityLevelUnderage {
+    val gad7Severity = when (gad7Score) {
+        in 0..7 -> SeverityLevelUnderage.MILD
+        in 8..14 -> SeverityLevelUnderage.MODERATE
+        else -> SeverityLevelUnderage.SEVERE
+    }
+    val aiSeverity = when {
+        aiPrediction.contains("mild", ignoreCase = true) -> SeverityLevelUnderage.MILD
+        aiPrediction.contains("moderate", ignoreCase = true) -> SeverityLevelUnderage.MODERATE
+        aiPrediction.contains("severe", ignoreCase = true) -> SeverityLevelUnderage.SEVERE
+        else -> SeverityLevelUnderage.MILD
+    }
+    return if (gad7Severity.ordinal >= aiSeverity.ordinal) gad7Severity else aiSeverity
+}
+
+fun getSeverityDisplay(severity: SeverityLevelUnderage): String = when (severity) {
+    SeverityLevelUnderage.MILD -> "Mild"
+    SeverityLevelUnderage.MODERATE -> "Moderate"
+    SeverityLevelUnderage.SEVERE -> "Severe"
+}
+
+fun getSeverityEmoji(severity: SeverityLevelUnderage): String = when (severity) {
+    SeverityLevelUnderage.MILD -> "🌱"
+    SeverityLevelUnderage.MODERATE -> "🤝"
+    SeverityLevelUnderage.SEVERE -> "🫂"
+}
+
+fun getMessageTitle(severity: SeverityLevelUnderage): String = when (severity) {
+    SeverityLevelUnderage.MILD -> "You're Doing Well"
+    SeverityLevelUnderage.MODERATE -> "Here for You"
+    SeverityLevelUnderage.SEVERE -> "Take a Moment"
+}
+
+fun getSeverityColor(severity: SeverityLevelUnderage): Color = when (severity) {
+    SeverityLevelUnderage.MILD -> Color(0xFF10B981)
+    SeverityLevelUnderage.MODERATE -> Color(0xFFF59E0B)
+    SeverityLevelUnderage.SEVERE -> Color(0xFFEF4444)
+}
+// ==============================================================================
 
 @Composable
 fun UnderageResultScreen(
@@ -124,7 +167,6 @@ fun UnderageResultScreen(
     LaunchedEffect(Unit) {
         NotificationHelper.createNotificationChannel(context)
 
-        // Request notification permission for Android 13+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(
                     context,
@@ -169,13 +211,10 @@ fun UnderageResultScreen(
         }
     }
 
-    // ============================================================
-    // SEND REPORT TO PARENT VIA GOOGLE APPS SCRIPT API
-    // ============================================================
     fun sendReportToParent() {
         Toast.makeText(context, "Sending report to parent...", Toast.LENGTH_SHORT).show()
 
-        scope.launch(Dispatchers.IO) {  // ← Change to Dispatchers.IO
+        scope.launch(Dispatchers.IO) {
             try {
                 val parentEmail = userData.parentEmail
                 Log.d("ParentEmail", "sendReportToParent - parentEmail: '$parentEmail'")
@@ -239,7 +278,7 @@ fun UnderageResultScreen(
             }
         }
     }
-    // Main UI - Only shows wellness tools, no scores/severity
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = UnderageWhiteSoft
@@ -292,7 +331,6 @@ fun UnderageResultScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Title
                 Text(
                     text = "Assessment Complete!",
                     fontSize = 24.sp,
@@ -313,7 +351,6 @@ fun UnderageResultScreen(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // Wellness Tools Section
                 Text(
                     text = "Wellness Tools",
                     fontSize = 20.sp,
@@ -324,12 +361,10 @@ fun UnderageResultScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Three wellness links only (no scores/severity)
                 Column(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Breathing Exercise
                     WellnessToolCard(
                         icon = Icons.Default.SelfImprovement,
                         title = "4-7-8 Breathing",
@@ -341,8 +376,6 @@ fun UnderageResultScreen(
                             }
                         }
                     )
-
-                    // Calming Sounds
                     WellnessToolCard(
                         icon = Icons.Default.MusicNote,
                         title = "Calming Sounds",
@@ -354,8 +387,6 @@ fun UnderageResultScreen(
                             }
                         }
                     )
-
-                    // Grounding Exercise
                     WellnessToolCard(
                         icon = Icons.Default.Spa,
                         title = "Grounding Exercise",
@@ -370,6 +401,20 @@ fun UnderageResultScreen(
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
+
+                // Manual test button (styled, not red)
+                Button(
+                    onClick = {
+                        Log.d("ParentEmail", "MANUAL TEST BUTTON CLICKED")
+                        sendReportToParent()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = UnderageSageAccent)
+                ) {
+                    Text("Send Report to Parent", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Return Home Button
                 Button(
@@ -392,19 +437,6 @@ fun UnderageResultScreen(
                 }
             }
         }
-    }
-
-
-    // Add this button in your Column, before the Return Home Button
-    Button(
-        onClick = {
-            Log.d("ParentEmail", "MANUAL TEST BUTTON CLICKED")
-            sendReportToParent()
-        },
-        modifier = Modifier.fillMaxWidth(),
-        colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-    ) {
-        Text("MANUAL TEST EMAIL", color = Color.White, fontWeight = FontWeight.Bold)
     }
 
     // Parent Notification Popup

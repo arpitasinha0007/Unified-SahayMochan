@@ -15,16 +15,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.os.Build
 import androidx.annotation.RequiresApi
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.draw.shadow
 import com.example.unifiedapp.theme.*
 
 data class WealthCategory(
@@ -186,7 +186,7 @@ fun WealthMenuScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(BackgroundGradient)
+            .background(SoftPurpleBg)  // Replaced BackgroundGradient
     ) {
         Column(
             modifier = Modifier
@@ -213,7 +213,7 @@ fun WealthMenuScreen(
                     Text(
                         text = "Your bright path to wellbeing ✨",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = TextMedium,
+                        color = TextSecondary,  // Changed from TextMedium
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
                 }
@@ -475,7 +475,7 @@ fun PleasantWellnessCard(
                 Text(
                     text = item.subtitle,
                     fontSize = 11.sp,
-                    color = TextMedium,
+                    color = TextSecondary,  // Changed from TextMedium
                     textAlign = TextAlign.Center,
                     maxLines = 2,
                     lineHeight = 14.sp

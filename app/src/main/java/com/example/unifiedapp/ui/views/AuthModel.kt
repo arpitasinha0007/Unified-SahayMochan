@@ -52,7 +52,7 @@ data class LoginRequest(
 // LOGIN RESPONSE (Nested structure as per new backend)
 // ──────────────────────────────────────────────────────────────────────────
 // Update LoginResponse to include phone_no
-data class ApiResponse(
+data class LoginResponse(
     val token: String? = null,
     val name: String,
     val email: String? = null,
@@ -60,7 +60,7 @@ data class ApiResponse(
     val registration_id: String,
     val age: Int? = null,
     val user_id: String? = null,
-    val phone_no: String? = null,  // ✅ ADD THIS
+    val phone_no: String? = null,
     val trials: TrialsData? = null,
     val parent: ParentData? = null
 )
@@ -203,4 +203,19 @@ data class ResetPasswordRequest(
 data class ResetPasswordResponse(
     val message: String,
     val success: Boolean
+)
+
+// Email Report Models
+data class EmailReportRequest(
+    @SerializedName("to_email") val toEmail: String,
+    @SerializedName("user_name") val userName: String,
+    @SerializedName("assessment_type") val assessmentType: String,
+    @SerializedName("severity") val severity: String,
+    @SerializedName("ai_prediction") val aiPrediction: String? = null,
+    @SerializedName("phq9_score") val phq9Score: Int? = null
+)
+
+data class EmailReportResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String
 )

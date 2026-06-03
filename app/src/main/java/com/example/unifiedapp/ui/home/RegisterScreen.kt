@@ -187,7 +187,8 @@ fun RegisterScreen(
 
         if (canRegister()) {
             val roll_no = generateAnonymousId(name, id)
-            Log.d("REGISTER_DEBUG", "Calling registerWithoutPhone with roll_no: $roll_no")
+            Log.d("REGISTER_DEBUG", "Calling registerWithoutPhone with rollNo: $roll_no")
+            // ✅ FIXED: parameter name changed from "roll_no" to "rollNo"
             viewModel.registerWithoutPhone(
                 registrationId = id,
                 password = password,
@@ -195,7 +196,7 @@ fun RegisterScreen(
                 gender = gender,
                 email = email,
                 age = age!!,
-                roll_no = roll_no
+                rollNo = roll_no
             )
         } else {
             Log.d("REGISTER_DEBUG", "Registration validation failed")
