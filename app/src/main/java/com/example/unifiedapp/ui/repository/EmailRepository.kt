@@ -1,7 +1,7 @@
 package com.example.unifiedapp.ui.repository
 
 import com.example.unifiedapp.ui.views.QuizReportDto
-import com.example.unifiedapp.ui.remote.ApiClient
+import com.example.unifiedapp.remote.ApiClient
 
 class EmailRepository {
 

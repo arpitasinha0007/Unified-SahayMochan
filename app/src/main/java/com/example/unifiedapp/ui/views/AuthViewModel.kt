@@ -5,7 +5,7 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.MutableLiveData
-import com.example.unifiedapp.ui.remote.ApiClient
+import com.example.unifiedapp.remote.ApiClient
 import com.example.unifiedapp.ui.repository.RegisterRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,6 +23,7 @@ import com.google.gson.GsonBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+// ✅ Clinical models from 'ui.views' (they are fine)
 import com.example.unifiedapp.ui.views.PatientItem
 import com.example.unifiedapp.ui.views.PatientListResponse
 import com.example.unifiedapp.ui.views.HamARequest
@@ -32,6 +33,7 @@ import com.example.unifiedapp.ui.views.HdrsResponse
 import com.example.unifiedapp.ui.views.ClinicalScoresResponse
 import com.example.unifiedapp.ui.views.ClinicianLoginResponse
 
+// ── Shared sealed states (unchanged) ──────────────────────────────
 sealed class AssessmentListState {
     object Idle : AssessmentListState()
     object Loading : AssessmentListState()
@@ -200,7 +202,6 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
                     parent_email = null,
                     phone_no = null
                 )
-                // ✅ Correct method: registerUser (not register)
                 val response = ApiClient.authApi.registerUser(request)
                 if (response.isSuccessful && response.body() != null) {
                     val body = response.body()!!
@@ -368,9 +369,9 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // ✅ Patient login – uses correct field names from models.LoginResponse
     fun login(id: String, password: String) {
         _loginState.value = LoginState.Loading
-        // ✅ Correct method: loginUser
         ApiClient.authApi.loginUser(LoginRequest(id, password))
             .enqueue(object : Callback<LoginResponse> {
                 override fun onResponse(call: Call<LoginResponse>, response: Response<LoginResponse>) {
@@ -409,8 +410,7 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
             })
     }
 
-    // ========== CLINICAL FUNCTIONS ==========
-    // ✅ Correct signature: two strings (registrationId, password)
+    // ========== CLINICAL FUNCTIONS (unchanged) ==========
     fun loginClinician(registrationId: String, password: String) {
         _clinicianLoginState.value = LoginState.Loading
         viewModelScope.launch {

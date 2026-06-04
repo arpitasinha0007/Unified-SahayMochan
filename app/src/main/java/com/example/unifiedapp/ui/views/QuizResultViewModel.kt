@@ -2,7 +2,7 @@ package com.example.unifiedapp.ui.views
 
 import android.annotation.SuppressLint
 import android.content.Context
-import com.example.unifiedapp.ui.remote.ApiClient
+import com.example.unifiedapp.remote.ApiClient
 import com.example.unifiedapp.ui.repository.EmailRepository
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
