@@ -8,6 +8,19 @@ data class ClinicianLoginRequest(
     val password: String
 )
 
+data class RegisterClinicianRequest(
+    val name: String,
+    val password: String,
+    val email: String
+)
+
+data class RegisterClinicianResponse(
+    val success: Boolean,
+    val registration_id: String,
+    val user_id: String,
+    val name: String,
+    val message: String? = null
+)
 data class ClinicianLoginResponse(
     val success: Boolean,
     val token: String,

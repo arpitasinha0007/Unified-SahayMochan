@@ -23,16 +23,6 @@ import com.google.gson.GsonBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-// ✅ Clinical models from 'ui.views' (they are fine)
-import com.example.unifiedapp.ui.views.PatientItem
-import com.example.unifiedapp.ui.views.PatientListResponse
-import com.example.unifiedapp.ui.views.HamARequest
-import com.example.unifiedapp.ui.views.HamAResponse
-import com.example.unifiedapp.ui.views.HdrsRequest
-import com.example.unifiedapp.ui.views.HdrsResponse
-import com.example.unifiedapp.ui.views.ClinicalScoresResponse
-import com.example.unifiedapp.ui.views.ClinicianLoginResponse
-
 // ── Shared sealed states (unchanged) ──────────────────────────────
 sealed class AssessmentListState {
     object Idle : AssessmentListState()
@@ -410,7 +400,7 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
             })
     }
 
-    // ========== CLINICAL FUNCTIONS (unchanged) ==========
+    // ========== CLINICAL FUNCTIONS (with fixed clinician login) ==========
     fun loginClinician(registrationId: String, password: String) {
         _clinicianLoginState.value = LoginState.Loading
         viewModelScope.launch {
@@ -432,6 +422,10 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
                 _clinicianLoginState.value = LoginState.Error(e.message ?: "Network error")
             }
         }
+    }
+
+    fun resetClinicianLoginState() {
+        _clinicianLoginState.value = LoginState.Idle
     }
 
     fun fetchPatients(clinicianId: String, searchQuery: String? = null) {
@@ -506,6 +500,36 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    private val _clinicianRegisterState = MutableStateFlow<RegisterState>(RegisterState.Idle)
+    val clinicianRegisterState: StateFlow<RegisterState> = _clinicianRegisterState.asStateFlow()
+
+    fun registerClinician(name: String, email: String, password: String) {
+        viewModelScope.launch {
+            _clinicianRegisterState.value = RegisterState.Loading
+            try {
+                val request = RegisterClinicianRequest(name, password, email)
+                val response = ApiClient.authApi.registerClinician(request)
+                if (response.isSuccessful && response.body() != null) {
+                    val body = response.body()!!
+                    if (body.success) {
+                        _clinicianRegisterState.value = RegisterState.Success("Clinician registered! Please login.")
+                    } else {
+                        _clinicianRegisterState.value = RegisterState.Error(body.message ?: "Registration failed")
+                    }
+                } else {
+                    val errorMsg = response.errorBody()?.string() ?: "Registration failed"
+                    _clinicianRegisterState.value = RegisterState.Error(errorMsg)
+                }
+            } catch (e: Exception) {
+                _clinicianRegisterState.value = RegisterState.Error(e.message ?: "Network error")
+            }
+        }
+    }
+
+    fun resetClinicianRegisterState() {
+        _clinicianRegisterState.value = RegisterState.Idle
+    }
+
     fun logout() {
         viewModelScope.launch {
             prefs.logout()
@@ -521,6 +545,7 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
             resetRegistrationFlow()
         }
     }
+
 
     fun getPrefs() = prefs
 }

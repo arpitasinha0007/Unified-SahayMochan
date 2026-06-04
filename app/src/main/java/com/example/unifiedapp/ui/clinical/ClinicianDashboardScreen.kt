@@ -25,6 +25,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.unifiedapp.ui.views.AuthViewModel
 import com.example.unifiedapp.ui.views.PatientItem
+import com.example.unifiedapp.ui.views.UserPreferences
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,13 +35,16 @@ fun ClinicianDashboardScreen(
     authViewModel: AuthViewModel = viewModel()
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val userPreferences = UserPreferences(context)
+
     var searchQuery by remember { mutableStateOf("") }
     val patients by authViewModel.patients.collectAsState()
     var clinicianId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        val prefs = context.getSharedPreferences("clinician_session", Context.MODE_PRIVATE)
-        clinicianId = prefs.getString("user_id", null)
+        // ✅ Use UserPreferences to get clinician ID
+        clinicianId = userPreferences.getClinicianUserId()
         if (clinicianId != null) {
             authViewModel.fetchPatients(clinicianId!!)
         } else {
@@ -57,7 +62,9 @@ fun ClinicianDashboardScreen(
                 ),
                 actions = {
                     IconButton(onClick = {
-                        context.getSharedPreferences("clinician_session", Context.MODE_PRIVATE).edit().clear().apply()
+                        scope.launch {
+                            userPreferences.clearClinicianSession()
+                        }
                         navController.popBackStack()
                     }) {
                         Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout")

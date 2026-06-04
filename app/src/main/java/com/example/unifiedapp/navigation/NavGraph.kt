@@ -10,6 +10,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.unifiedapp.screens.*
+import com.example.unifiedapp.ui.auth.ClinicianRegisterScreen
 import com.example.unifiedapp.ui.auth.UnifiedAuthScreen
 import com.example.unifiedapp.ui.auth.UserProfile
 import com.example.unifiedapp.ui.clinical.ClinicianDashboardScreen
@@ -54,8 +55,9 @@ object Screen {
     const val PRIVACY_POLICY = "privacy_policy"
     const val TERMS_CONDITIONS = "terms_conditions"
 
-    // ✅ Clinician routes
+    // Clinician routes
     const val CLINICIAN_DASHBOARD = "clinician_dashboard"
+    const val CLINICIAN_REGISTER = "clinician_register"   // ✅ Added
     const val HAM_A_ASSESSMENT = "ham_a_assessment/{patientId}/{patientName}"
     const val HDRS_ASSESSMENT = "hdrs_assessment/{patientId}/{patientName}"
     const val CLINICAL_RESULT = "clinical_result/{score}/{severity}/{type}"
@@ -91,6 +93,11 @@ fun UnifiedNavGraph(
                     }
                 }
             )
+        }
+
+        // ✅ Clinician Registration
+        composable(Screen.CLINICIAN_REGISTER) {
+            ClinicianRegisterScreen(navController = navController)
         }
 
         // Patient dashboard
