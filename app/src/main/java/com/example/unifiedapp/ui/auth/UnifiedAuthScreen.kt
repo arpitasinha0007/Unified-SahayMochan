@@ -135,16 +135,19 @@ fun UnifiedAuthScreen(
         }
     }
 
+    // ✅ FIX: Add imePadding and navigationBarsPadding for proper keyboard handling
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(AuthLavenderBackground)
+            .imePadding()
+            .navigationBarsPadding()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(40.dp))
@@ -365,7 +368,7 @@ fun UnifiedAuthScreen(
                             }
                         }
 
-                        // ✅ Add Clinician Registration Link Here
+                        // Clinician Registration Link
                         if (selectedRole == "clinician") {
                             Spacer(modifier = Modifier.height(12.dp))
                             Row(
@@ -391,15 +394,17 @@ fun UnifiedAuthScreen(
                     }
                 }
             } else {
-                // Signup Form (patient only) – unchanged (same as before)
+                // ========== PATIENT SIGNUP FORM (Fully Scrollable – outer scroll handles it) ==========
                 Card(
-                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     elevation = CardDefaults.cardElevation(4.dp)
                 ) {
                     Column(
-                        modifier = Modifier.padding(24.dp).verticalScroll(rememberScrollState()),
+                        modifier = Modifier
+                            .padding(24.dp)
+                            .fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text("Patient Registration", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = AuthTextPrimary)
@@ -647,6 +652,25 @@ fun UnifiedAuthScreen(
                                 }
                             }
                         }
+
+                        // Back to Login link inside signup card
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Already have an account? ", color = AuthTextSecondary, fontSize = 14.sp)
+                            Text(
+                                text = "Login",
+                                color = AuthLavenderPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.clickable {
+                                    isLoginMode = true
+                                    errorMessage = null
+                                }
+                            )
+                        }
                     }
                 }
             }
@@ -679,7 +703,7 @@ fun UnifiedAuthScreen(
     }
 }
 
-// ==================== API FUNCTIONS (Patient only) ====================
+// ==================== API FUNCTIONS (Patient only) – unchanged ====================
 
 suspend fun performLogin(
     context: Context,
