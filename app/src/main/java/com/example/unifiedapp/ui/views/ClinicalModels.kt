@@ -8,10 +8,14 @@ data class ClinicianLoginRequest(
     val password: String
 )
 
+// Add or update in ClinicalModels.kt
+
 data class RegisterClinicianRequest(
     val name: String,
     val password: String,
-    val email: String
+    val email: String,
+    val age: Int,
+    val gender: String          // ✅ Added gender
 )
 
 data class RegisterClinicianResponse(
@@ -21,6 +25,7 @@ data class RegisterClinicianResponse(
     val name: String,
     val message: String? = null
 )
+
 data class ClinicianLoginResponse(
     val success: Boolean,
     val token: String,

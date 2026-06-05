@@ -4,8 +4,10 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -23,7 +25,6 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavController
 import com.example.unifiedapp.ui.views.AuthViewModel
 import com.example.unifiedapp.ui.views.RegisterState
@@ -31,31 +32,23 @@ import com.example.unifiedapp.ui.views.RegisterState
 @Composable
 fun ClinicianRegisterScreen(
     navController: NavController,
-    authViewModel: AuthViewModel = viewModel(
-        factory = object : ViewModelProvider.Factory {
-            val app = LocalContext.current.applicationContext as android.app.Application
-            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                @Suppress("UNCHECKED_CAST")
-                return AuthViewModel(app) as T
-            }
-        }
-    )
+    authViewModel: AuthViewModel = viewModel()
 ) {
     val context = LocalContext.current
 
-    // Form state
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
+    var ageText by remember { mutableStateOf("") }
+    var gender by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var ageError by remember { mutableStateOf<String?>(null) }
+    var genderError by remember { mutableStateOf<String?>(null) }
 
-    // Observe registration state
     val registerState by authViewModel.clinicianRegisterState.collectAsState()
-
-    // Local copy for smart cast
     val currentState = registerState
     LaunchedEffect(currentState) {
         when (currentState) {
@@ -69,14 +62,11 @@ fun ClinicianRegisterScreen(
                 isLoading = false
                 authViewModel.resetClinicianRegisterState()
             }
-            is RegisterState.Loading -> {
-                isLoading = true
-            }
-            else -> { /* Idle */ }
+            is RegisterState.Loading -> isLoading = true
+            else -> {}
         }
     }
 
-    // Colors (defined locally to avoid conflicts)
     val primaryColor = Color(0xFF9D8DF1)
     val accentColor = Color(0xFFD9D1FF)
     val bgColor = Color(0xFFFAF8FF)
@@ -87,43 +77,22 @@ fun ClinicianRegisterScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(bgColor, Color.White)
-                )
-            )
+            .background(Brush.verticalGradient(colors = listOf(bgColor, Color.White)))
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .padding(24.dp)
+                .verticalScroll(rememberScrollState()), // 👈 Makes the whole screen scrollable
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(40.dp))
 
-            Icon(
-                Icons.Default.MedicalServices,
-                contentDescription = null,
-                tint = primaryColor,
-                modifier = Modifier.size(64.dp)
-            )
-
+            Icon(Icons.Default.MedicalServices, null, tint = primaryColor, modifier = Modifier.size(64.dp))
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
-                text = "Clinician Registration",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = textPrimary
-            )
-
-            Text(
-                text = "Create your clinician account",
-                fontSize = 14.sp,
-                color = textSecondary,
-                modifier = Modifier.padding(top = 4.dp)
-            )
-
+            Text("Clinician Registration", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = textPrimary)
+            Text("Create your clinician account", fontSize = 14.sp, color = textSecondary, modifier = Modifier.padding(top = 4.dp))
             Spacer(modifier = Modifier.height(32.dp))
 
             Card(
@@ -133,13 +102,14 @@ fun ClinicianRegisterScreen(
                 elevation = CardDefaults.cardElevation(4.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(24.dp),
+                    modifier = Modifier
+                        .padding(24.dp)
+                        .fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Name field
+                    // Name
                     OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it },
+                        value = name, onValueChange = { name = it },
                         label = { Text("Full Name") },
                         leadingIcon = { Icon(Icons.Default.Person, null, tint = primaryColor) },
                         modifier = Modifier.fillMaxWidth(),
@@ -149,17 +119,12 @@ fun ClinicianRegisterScreen(
                             unfocusedBorderColor = accentColor.copy(alpha = 0.5f)
                         ),
                         isError = name.isNotBlank() && name.length < 3,
-                        supportingText = {
-                            if (name.isNotBlank() && name.length < 3) {
-                                Text("Name must be at least 3 characters")
-                            }
-                        }
+                        supportingText = { if (name.isNotBlank() && name.length < 3) Text("Name must be at least 3 characters") }
                     )
 
-                    // Email field
+                    // Email
                     OutlinedTextField(
-                        value = email,
-                        onValueChange = { email = it },
+                        value = email, onValueChange = { email = it },
                         label = { Text("Email Address") },
                         leadingIcon = { Icon(Icons.Default.Email, null, tint = primaryColor) },
                         modifier = Modifier.fillMaxWidth(),
@@ -171,24 +136,79 @@ fun ClinicianRegisterScreen(
                         ),
                         isError = email.isNotBlank() && !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches(),
                         supportingText = {
-                            if (email.isNotBlank() && !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                            if (email.isNotBlank() && !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches())
                                 Text("Enter a valid email address")
-                            }
                         }
                     )
 
-                    // Password field
+                    // Age
                     OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
+                        value = ageText, onValueChange = { if (it.isEmpty() || it.all { c -> c.isDigit() }) ageText = it },
+                        label = { Text("Age") },
+                        leadingIcon = { Icon(Icons.Default.Cake, null, tint = primaryColor) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = primaryColor,
+                            unfocusedBorderColor = accentColor.copy(alpha = 0.5f)
+                        ),
+                        isError = ageError != null,
+                        supportingText = { ageError?.let { Text(it) } }
+                    )
+
+                    // Gender Dropdown
+                    var expanded by remember { mutableStateOf(false) }
+                    val genders = listOf("male", "female", "other")
+                    Column {
+                        OutlinedTextField(
+                            value = gender,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Gender") },
+                            leadingIcon = { Icon(Icons.Default.Person, null, tint = primaryColor) },
+                            trailingIcon = {
+                                IconButton(onClick = { expanded = true }) {
+                                    Icon(Icons.Default.ArrowDropDown, null)
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = primaryColor,
+                                unfocusedBorderColor = accentColor.copy(alpha = 0.5f)
+                            ),
+                            isError = genderError != null
+                        )
+                        DropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            genders.forEach { g ->
+                                DropdownMenuItem(
+                                    text = { Text(g) },
+                                    onClick = {
+                                        gender = g
+                                        genderError = null
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                        if (genderError != null) {
+                            Text(genderError!!, color = errorRed, fontSize = 12.sp, modifier = Modifier.padding(start = 16.dp, top = 4.dp))
+                        }
+                    }
+
+                    // Password
+                    OutlinedTextField(
+                        value = password, onValueChange = { password = it },
                         label = { Text("Password") },
                         leadingIcon = { Icon(Icons.Default.Lock, null, tint = primaryColor) },
                         trailingIcon = {
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                Icon(
-                                    if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                    contentDescription = null
-                                )
+                                Icon(if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility, null)
                             }
                         },
                         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -199,19 +219,19 @@ fun ClinicianRegisterScreen(
                             unfocusedBorderColor = accentColor.copy(alpha = 0.5f)
                         ),
                         isError = password.isNotBlank() && password.length < 6,
-                        supportingText = {
-                            if (password.isNotBlank() && password.length < 6) {
-                                Text("Password must be at least 6 characters")
-                            }
-                        }
+                        supportingText = { if (password.isNotBlank() && password.length < 6) Text("Password must be at least 6 characters") }
                     )
 
-                    // Confirm password field
+                    // Confirm Password (uses the same passwordVisible state)
                     OutlinedTextField(
-                        value = confirmPassword,
-                        onValueChange = { confirmPassword = it },
+                        value = confirmPassword, onValueChange = { confirmPassword = it },
                         label = { Text("Confirm Password") },
                         leadingIcon = { Icon(Icons.Default.Lock, null, tint = primaryColor) },
+                        trailingIcon = {
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility, null)
+                            }
+                        },
                         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -220,24 +240,11 @@ fun ClinicianRegisterScreen(
                             unfocusedBorderColor = accentColor.copy(alpha = 0.5f)
                         ),
                         isError = confirmPassword.isNotBlank() && password != confirmPassword,
-                        supportingText = {
-                            if (confirmPassword.isNotBlank() && password != confirmPassword) {
-                                Text("Passwords do not match")
-                            }
-                        }
+                        supportingText = { if (confirmPassword.isNotBlank() && password != confirmPassword) Text("Passwords do not match") }
                     )
 
-                    // Error message
-                    if (errorMessage != null) {
-                        Text(
-                            text = errorMessage!!,
-                            color = errorRed,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
+                    if (errorMessage != null) Text(errorMessage!!, color = errorRed, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
 
-                    // Register button
                     Button(
                         onClick = {
                             if (name.length < 3) {
@@ -248,6 +255,17 @@ fun ClinicianRegisterScreen(
                                 errorMessage = "Enter a valid email address"
                                 return@Button
                             }
+                            val age = ageText.toIntOrNull()
+                            if (age == null || age < 18 || age > 120) {
+                                ageError = "Age must be 18-120"
+                                return@Button
+                            }
+                            ageError = null
+                            if (gender.isBlank()) {
+                                genderError = "Please select a gender"
+                                return@Button
+                            }
+                            genderError = null
                             if (password.length < 6) {
                                 errorMessage = "Password must be at least 6 characters"
                                 return@Button
@@ -257,41 +275,34 @@ fun ClinicianRegisterScreen(
                                 return@Button
                             }
                             errorMessage = null
-                            authViewModel.registerClinician(name, email, password)
+                            authViewModel.registerClinician(name, email, password, age, gender)
                         },
                         enabled = !isLoading,
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                            .padding(bottom = 16.dp), // extra bottom padding
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = primaryColor,
                             disabledContainerColor = primaryColor.copy(alpha = 0.5f)
                         )
                     ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
-                        } else {
-                            Text("Register", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        }
+                        if (isLoading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                        else Text("Register", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Login link
                     Row(
                         horizontalArrangement = Arrangement.Center,
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Already have an account? ", color = textSecondary, fontSize = 14.sp)
                         Text(
-                            text = "Login",
-                            color = primaryColor,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.clickable {
-                                navController.popBackStack()
-                            }
+                            "Login", color = primaryColor, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                            modifier = Modifier.clickable { navController.popBackStack() }
                         )
                     }
+                    Spacer(modifier = Modifier.height(8.dp)) // extra space at the bottom
                 }
             }
         }

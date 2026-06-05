@@ -12,27 +12,13 @@ import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
 
-// Keep existing data classes (unchanged)
-data class ResultStateData(
-    val title: String,
-    val message: String,
-    val emoji: String,
-    val color: Int
-)
-
-data class AiPredictionDataForReport(
-    val anxietyPrediction: String,
-    val anxietyScore: Float,
-    val anxietyConfidence: Float
-)
-
 object ReportDownloadHelper {
     private const val TAG = "ReportDownloadHelper"
 
     fun generateReport(
         context: Context,
         userName: String,
-        userEmail: String,                     // NEW parameter
+        userEmail: String,
         userAge: Int,
         userGender: String,
         anonymousId: String,
@@ -40,6 +26,7 @@ object ReportDownloadHelper {
         phq9Score: Int,
         phq9Severity: SeverityData,
         aiData: AiPredictionData?,
+        assessmentType: String,  // ✅ "depression" or "anxiety"
         onProgress: (Int) -> Unit = {}
     ): String? {
         return try {
@@ -53,7 +40,7 @@ object ReportDownloadHelper {
             onProgress(20)
 
             val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-            val fileName = "${anonymousId}_assessment_${timestamp}.pdf"
+            val fileName = "${anonymousId}_${assessmentType}_${timestamp}.pdf"
             val pdfFile = File(reportsFolder, fileName)
             onProgress(30)
 
@@ -63,6 +50,13 @@ object ReportDownloadHelper {
             val canvas = page.canvas
             onProgress(40)
 
+            // Determine report title based on assessment type
+            val reportTitle = if (assessmentType.equals("depression", ignoreCase = true)) {
+                "MOCHAN DEPRESSION ASSESSMENT REPORT"
+            } else {
+                "SAHAY ANXIETY ASSESSMENT REPORT"
+            }
+
             val logoBitmap = try {
                 BitmapFactory.decodeResource(context.resources, R.drawable.mochan_logo)
             } catch (e: Exception) {
@@ -70,7 +64,7 @@ object ReportDownloadHelper {
                 null
             }
 
-            // ============ HEADER SECTION (unchanged) ============
+            // ============ HEADER SECTION ============
             val headerYPosition = 50f
 
             logoBitmap?.let {
@@ -80,7 +74,7 @@ object ReportDownloadHelper {
                     textSize = 28f
                     typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                 }
-                val textWidth = titlePaint.measureText("MOCHAN ASSESSMENT REPORT")
+                val textWidth = titlePaint.measureText(reportTitle)
                 val logoWidth = 70f
                 val spacing = 15f
                 val totalElementWidth = logoWidth + spacing + textWidth
@@ -88,7 +82,7 @@ object ReportDownloadHelper {
                 val leftMargin = 50f
                 val startX = leftMargin + (pageWidth - totalElementWidth) / 2
                 canvas.drawBitmap(scaledLogo, startX, headerYPosition - 35f, null)
-                canvas.drawText("MOCHAN ASSESSMENT REPORT", startX + logoWidth + spacing, headerYPosition, titlePaint)
+                canvas.drawText(reportTitle, startX + logoWidth + spacing, headerYPosition, titlePaint)
             } ?: run {
                 val titlePaint = Paint().apply {
                     color = Color.parseColor("#1F2937")
@@ -96,13 +90,12 @@ object ReportDownloadHelper {
                     typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                     textAlign = Paint.Align.CENTER
                 }
-                canvas.drawText("MOCHAN ASSESSMENT REPORT", 297.5f, headerYPosition, titlePaint)
+                canvas.drawText(reportTitle, 297.5f, headerYPosition, titlePaint)
             }
 
             var yPosition = headerYPosition + 40f
             onProgress(50)
 
-            // Line
             val linePaint = Paint().apply {
                 color = Color.parseColor("#E5E7EB")
                 strokeWidth = 2f
@@ -110,19 +103,14 @@ object ReportDownloadHelper {
             canvas.drawLine(50f, yPosition, 545f, yPosition, linePaint)
             yPosition += 30f
 
-            // Date
             val dateFormat = SimpleDateFormat("MMMM dd, yyyy - hh:mm a", Locale.getDefault())
             canvas.drawText("Report Generated: ${dateFormat.format(Date())}", 50f, yPosition,
-                Paint().apply {
-                    color = Color.parseColor("#4B5563")
-                    textSize = 10f
-                }
+                Paint().apply { color = Color.parseColor("#4B5563"); textSize = 10f }
             )
             yPosition += 30f
-
             onProgress(60)
 
-            // ============ NEW PATIENT INFO BLOCK (name, email, registration ID) ============
+            // Patient Info Block
             val infoPaint = Paint().apply {
                 color = Color.parseColor("#374151")
                 textSize = 11f
@@ -133,8 +121,6 @@ object ReportDownloadHelper {
                 textSize = 11f
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             }
-
-            // Draw a subtle background box
             val infoBoxPaint = Paint().apply {
                 color = Color.parseColor("#F9FAFB")
                 style = Paint.Style.FILL
@@ -152,7 +138,7 @@ object ReportDownloadHelper {
 
             yPosition += 80f
 
-            // ============ ASSESSMENT RESULTS SECTION (unchanged) ============
+            // Assessment Results Section
             val headerPaint = Paint().apply {
                 color = Color.parseColor("#4F46E5")
                 textSize = 16f
@@ -182,52 +168,41 @@ object ReportDownloadHelper {
                 textSize = 11f
             }
 
-            canvas.drawText("📋 PHQ-9 QUESTIONNAIRE", 70f, yPosition + 5f, sectionPaint)
+            val questionnaireLabel = if (assessmentType.equals("depression", ignoreCase = true)) {
+                "📋 PHQ-9 QUESTIONNAIRE"
+            } else {
+                "📋 GAD-7 QUESTIONNAIRE"
+            }
+            canvas.drawText(questionnaireLabel, 70f, yPosition + 5f, sectionPaint)
             canvas.drawText("Severity: ${phq9Severity.level}", 70f, yPosition + 30f, boldTextPaint)
             canvas.drawText(phq9Severity.description, 70f, yPosition + 50f, textPaint)
 
             yPosition += 80f
 
-            // AI Results (if available) – unchanged
-            if (aiData != null) {
+            // AI Results (simplified – only severity label)
+            if (aiData != null && aiData.label.isNotBlank()) {
                 val aiBoxPaint = Paint().apply {
                     color = Color.parseColor("#F5F3FF")
                     style = Paint.Style.FILL
                 }
-                canvas.drawRect(50f, yPosition - 10f, 545f, yPosition + 100f, aiBoxPaint)
+                canvas.drawRect(50f, yPosition - 10f, 545f, yPosition + 70f, aiBoxPaint)
 
                 canvas.drawText("🤖 AI FACIAL ANALYSIS", 70f, yPosition + 5f, sectionPaint)
-                canvas.drawText("Assessment: ${aiData.label}", 70f, yPosition + 30f, boldTextPaint)
-                canvas.drawText("Frames Analyzed: ${aiData.frameCount}", 70f, yPosition + 90f, textPaint)
+                // Show only the severity level (Mild/Moderate/Severe)
+                canvas.drawText("Prediction: ${aiData.label}", 70f, yPosition + 30f, boldTextPaint)
+                // Removed "Frames Analyzed" line
 
-                yPosition += 130f
-
-                val recommendation = when (phq9Severity.level) {
-                    "Mild" -> "✓ Continue with self-care practices and monitor your wellbeing"
-                    "Moderate" -> "⚠️ Consider consulting with a mental health professional"
-                    else -> "❗ We strongly recommend seeking professional help"
-                }
-                val agreementPaint = when (phq9Severity.level) {
-                    "Mild" -> Paint().apply { color = Color.parseColor("#10B981") }
-                    "Moderate" -> Paint().apply { color = Color.parseColor("#F59E0B") }
-                    else -> Paint().apply { color = Color.parseColor("#EF4444") }
-                }.apply {
-                    textSize = 11f
-                    typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-                }
-                canvas.drawText(recommendation, 70f, yPosition, agreementPaint)
-                yPosition += 30f
+                yPosition += 80f
             }
 
             onProgress(70)
 
-            // Recommendations Section – unchanged
+            // Recommendations Section
             canvas.drawText("RECOMMENDATIONS", 50f, yPosition, headerPaint)
             yPosition += 30f
 
             val recCount = phq9Severity.recommendations.size
             val recBoxHeight = (recCount * 20f) + 20f
-
             val recBoxPaint = Paint().apply {
                 color = Color.parseColor("#FFF7ED")
                 style = Paint.Style.FILL
@@ -243,10 +218,9 @@ object ReportDownloadHelper {
             }
 
             yPosition = recYPos + 20f
-
             onProgress(80)
 
-            // Crisis Resources Section – unchanged
+            // Crisis Resources
             canvas.drawText("CRISIS RESOURCES", 50f, yPosition, headerPaint)
             yPosition += 25f
 
@@ -262,10 +236,9 @@ object ReportDownloadHelper {
             canvas.drawText("🏥 Visit your nearest hospital emergency room", 70f, yPosition + 65f, textPaint)
 
             yPosition += 100f
-
             onProgress(85)
 
-            // Footer – unchanged
+            // Footer
             val footerPaint = Paint().apply {
                 color = Color.parseColor("#9CA3AF")
                 textSize = 8f

@@ -154,16 +154,13 @@ fun ResultScreen(
     val registrationId = session.registrationId
 
     // ========== TRIAL DECREMENT ==========
-    // Decrement the appropriate trial when the result screen is first shown
     LaunchedEffect(Unit) {
         if (registrationId.isNotBlank()) {
             try {
                 if (assessmentType == "depression") {
-                    val success = TrialHelper.useDepressionTrial(registrationId)
-                    Log.d("TRIAL", "Depression trial decrement: ${if (success) "success" else "failed"}")
+                    TrialHelper.useDepressionTrial(registrationId)
                 } else {
-                    val success = TrialHelper.useAnxietyTrial(registrationId)
-                    Log.d("TRIAL", "Anxiety trial decrement: ${if (success) "success" else "failed"}")
+                    TrialHelper.useAnxietyTrial(registrationId)
                 }
             } catch (e: Exception) {
                 Log.e("TRIAL", "Error decrementing trial", e)
@@ -173,17 +170,23 @@ fun ResultScreen(
         }
     }
 
-    // AI prediction data (same as before)
-    val aiScore = prefs.getInt("ai_prediction_score", -1)
-    val aiLabel = prefs.getString("ai_prediction_label", "") ?: ""
-    val aiConfidence = prefs.getFloat("ai_prediction_confidence", 0f)
-    val aiModelVersion = prefs.getString("ai_model_version", "") ?: ""
-    val aiFrameCount = prefs.getInt("ai_frame_count", 0)
+    // AI prediction data – using keys saved in AssessmentQuestionnairesScreen
     val aiRawScore = prefs.getFloat("ai_raw_score", 0f)
+    val aiLabel = prefs.getString("ai_prediction_label", "") ?: ""
+    val aiConfidence = prefs.getFloat("ai_confidence", 0f)
 
-    val aiData = if (aiScore != -1 && aiLabel.isNotBlank()) {
-        AiPredictionData(aiScore, aiLabel, aiConfidence, aiModelVersion, aiFrameCount, aiRawScore)
+    val aiData = if (aiRawScore > 0 && aiLabel.isNotBlank()) {
+        AiPredictionData(
+            score = aiRawScore.toInt(),
+            label = aiLabel,
+            confidence = aiConfidence,
+            modelVersion = "unknown",
+            frameCount = 0,
+            rawScore = aiRawScore
+        )
     } else null
+
+    Log.d("AI_FIX", "AI Data: label=$aiLabel, score=$aiRawScore, confidence=$aiConfidence")
 
     val aiSeverityData = if (aiData != null) {
         val severityClass = when {
@@ -203,7 +206,6 @@ fun ResultScreen(
     var uploadStarted by remember { mutableStateOf(false) }
     var isDownloading by remember { mutableStateOf(false) }
 
-    // Upload function
     fun performUpload() {
         if (isUploading) return
         if (anonymousId.isBlank()) {
@@ -300,6 +302,7 @@ fun ResultScreen(
                     score = actualScore,
                     phq9Severity = displaySeverity,
                     aiData = aiData,
+                    assessmentType = assessmentType,
                     isDownloading = isDownloading,
                     onDownloadStart = { isDownloading = true },
                     onDownloadComplete = { success ->
@@ -315,6 +318,17 @@ fun ResultScreen(
         }
     }
 }
+
+// ============ THE REST OF THE COMPOSABLES (UploadDataButton, UploadProgressCard, UploadSuccessCard, startUpload, UploadStatus, UploadErrorCard, UserInfoCard, InfoChipEnhanced, EnhancedAssessmentCard, EnhancedRecommendationsCard, EnhancedRecommendationItem, DownloadReportButton, AssessmentHeader, EnhancedSetuPromoCard, EnhancedWellnessToolsCard, ToolItemEnhanced, FeaturePill, getSeverityDataFromScore, getSeverityDataFromClass) ============
+// Keep them exactly as they were in your original file, but with the following fixes:
+
+// 1. In DownloadReportButton composable, fix LinearProgressIndicator:
+//    Replace `progress = downloadProgress / 100f` with `progress = { downloadProgress / 100f }`
+
+// 2. Replace `Divider` with `HorizontalDivider` in EnhancedRecommendationItem
+
+// Since the full file is very long, I've provided the critical fixes above.
+// Please apply these changes to your existing file.
 
 // ============ ALL OTHER COMPOSABLES REMAIN UNCHANGED ============
 // (UploadDataButton, UploadProgressCard, UploadSuccessCard, startUpload, UploadStatus, UploadErrorCard,
@@ -1237,7 +1251,7 @@ fun EnhancedRecommendationItem(
 
         if (!isLast) {
             Spacer(modifier = Modifier.height(8.dp))
-            Divider(
+            HorizontalDivider(
                 color = Color(0xFFE5E7EB),
                 thickness = 1.dp,
                 modifier = Modifier.padding(start = 56.dp)
@@ -1259,6 +1273,7 @@ fun DownloadReportButton(
     score: Int,
     phq9Severity: SeverityData,
     aiData: AiPredictionData?,
+    assessmentType: String,
     isDownloading: Boolean,
     onDownloadStart: () -> Unit,
     onDownloadComplete: (Boolean) -> Unit,
@@ -1367,7 +1382,7 @@ fun DownloadReportButton(
             if (isDownloading) {
                 Column(modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
                     LinearProgressIndicator(
-                        progress = downloadProgress / 100f,
+                        progress = { downloadProgress / 100f },
                         modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
                         color = Color(0xFF8B5CF6),
                         trackColor = Color(0xFFE5E7EB)
@@ -1403,6 +1418,7 @@ fun DownloadReportButton(
                                 phq9Score = score,
                                 phq9Severity = phq9Severity,
                                 aiData = aiData,
+                                assessmentType = assessmentType,
                                 onProgress = { progress -> downloadProgress = progress }
                             )
                             if (filePath != null) {

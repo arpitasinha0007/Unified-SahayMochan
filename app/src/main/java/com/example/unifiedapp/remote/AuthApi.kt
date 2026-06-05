@@ -20,6 +20,7 @@ interface AuthApi {
     @POST("send-phone-otp")
     fun sendPhoneOtp(@Body request: SendOtpRequest): Call<SendOtpResponse>
 
+    // ✅ Clinician registration (single, correct version)
     @POST("register-clinician")
     suspend fun registerClinician(
         @Body request: RegisterClinicianRequest
@@ -65,10 +66,7 @@ interface AuthApi {
     @POST("register-patient")
     suspend fun registerPatient(@Body request: RegisterRequest): Response<RegisterResponse>
 
-    @POST("register-clinician")
-    suspend fun registerClinician(@Body request: RegisterRequest): Response<RegisterResponse>
-
-    // ✅ FIXED: Clinician login uses QUERY parameters (not form-urlencoded)
+    // ✅ Clinician login uses QUERY parameters
     @POST("login-clinician")
     suspend fun loginClinician(
         @Query("registration_id") registrationId: String,

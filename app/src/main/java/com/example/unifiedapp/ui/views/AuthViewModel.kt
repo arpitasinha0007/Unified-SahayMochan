@@ -503,11 +503,15 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
     private val _clinicianRegisterState = MutableStateFlow<RegisterState>(RegisterState.Idle)
     val clinicianRegisterState: StateFlow<RegisterState> = _clinicianRegisterState.asStateFlow()
 
-    fun registerClinician(name: String, email: String, password: String) {
+// Inside AuthViewModel.kt – replace the existing registerClinician function with this:
+
+// Inside AuthViewModel.kt – replace the registerClinician function
+
+    fun registerClinician(name: String, email: String, password: String, age: Int, gender: String) {
         viewModelScope.launch {
             _clinicianRegisterState.value = RegisterState.Loading
             try {
-                val request = RegisterClinicianRequest(name, password, email)
+                val request = RegisterClinicianRequest(name, password, email, age, gender)
                 val response = ApiClient.authApi.registerClinician(request)
                 if (response.isSuccessful && response.body() != null) {
                     val body = response.body()!!
@@ -525,7 +529,6 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
-
     fun resetClinicianRegisterState() {
         _clinicianRegisterState.value = RegisterState.Idle
     }
