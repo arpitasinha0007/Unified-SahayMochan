@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -358,17 +359,20 @@ fun ClinicianRegisterScreen(
                                 fontSize = 12.sp,
                                 color = textSecondary
                             )
-                            Text(
-                                regIdToShow,
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = primaryColor,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
+                            // ✅ Make the ID text selectable (long-press to copy)
+                            SelectionContainer {
+                                Text(
+                                    text = regIdToShow,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = primaryColor,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
                         }
                     }
                     Text(
-                        "Please save this ID. You will need it to log in.",
+                        "Long press on the ID to copy it.",
                         fontSize = 12.sp,
                         color = textSecondary,
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
