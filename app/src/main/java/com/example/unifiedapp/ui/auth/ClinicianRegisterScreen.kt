@@ -49,21 +49,32 @@ fun ClinicianRegisterScreen(
     var genderError by remember { mutableStateOf<String?>(null) }
 
     val registerState by authViewModel.clinicianRegisterState.collectAsState()
-    val currentState = registerState
-    LaunchedEffect(currentState) {
-        when (currentState) {
+    val regResult by authViewModel.clinicianRegResult.collectAsState()
+    var showRegDialog by remember { mutableStateOf(false) }
+    var regIdToShow by remember { mutableStateOf("") }
+
+    // ✅ Fix: capture state in local variable for smart casting
+    val currentRegisterState = registerState
+    LaunchedEffect(currentRegisterState) {
+        when (currentRegisterState) {
             is RegisterState.Success -> {
-                Toast.makeText(context, currentState.message, Toast.LENGTH_LONG).show()
-                authViewModel.resetClinicianRegisterState()
-                navController.popBackStack()
+                isLoading = false
             }
             is RegisterState.Error -> {
-                errorMessage = currentState.message
+                errorMessage = currentRegisterState.message
                 isLoading = false
                 authViewModel.resetClinicianRegisterState()
             }
             is RegisterState.Loading -> isLoading = true
             else -> {}
+        }
+    }
+
+    // Show dialog when registration result arrives
+    LaunchedEffect(regResult) {
+        if (regResult != null) {
+            regIdToShow = regResult!!.registrationId
+            showRegDialog = true
         }
     }
 
@@ -83,7 +94,7 @@ fun ClinicianRegisterScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(24.dp)
-                .verticalScroll(rememberScrollState()), // 👈 Makes the whole screen scrollable
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(40.dp))
@@ -222,7 +233,7 @@ fun ClinicianRegisterScreen(
                         supportingText = { if (password.isNotBlank() && password.length < 6) Text("Password must be at least 6 characters") }
                     )
 
-                    // Confirm Password (uses the same passwordVisible state)
+                    // Confirm Password
                     OutlinedTextField(
                         value = confirmPassword, onValueChange = { confirmPassword = it },
                         label = { Text("Confirm Password") },
@@ -281,7 +292,7 @@ fun ClinicianRegisterScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(52.dp)
-                            .padding(bottom = 16.dp), // extra bottom padding
+                            .padding(bottom = 16.dp),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = primaryColor,
@@ -302,9 +313,82 @@ fun ClinicianRegisterScreen(
                             modifier = Modifier.clickable { navController.popBackStack() }
                         )
                     }
-                    Spacer(modifier = Modifier.height(8.dp)) // extra space at the bottom
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
         }
+    }
+
+    // Dialog to show generated registration ID after successful registration
+    if (showRegDialog && regResult != null) {
+        AlertDialog(
+            onDismissRequest = {
+                showRegDialog = false
+                authViewModel.resetClinicianRegResult()
+                navController.popBackStack()
+            },
+            title = {
+                Text(
+                    "Registration Successful",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
+                )
+            },
+            text = {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "Your clinician account has been created.",
+                        fontSize = 14.sp,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Surface(
+                        color = primaryColor.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                "Registration ID",
+                                fontSize = 12.sp,
+                                color = textSecondary
+                            )
+                            Text(
+                                regIdToShow,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = primaryColor,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        "Please save this ID. You will need it to log in.",
+                        fontSize = 12.sp,
+                        color = textSecondary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showRegDialog = false
+                        authViewModel.resetClinicianRegResult()
+                        navController.popBackStack()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("OK", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
     }
 }

@@ -67,6 +67,13 @@ sealed class RegistrationFlowState {
     data class Error(val message: String) : RegistrationFlowState()
 }
 
+// ✅ Data class to hold clinician registration result
+data class ClinicianRegResult(
+    val registrationId: String,
+    val name: String,
+    val userId: String
+)
+
 class AuthViewModel(app: Application) : AndroidViewModel(app) {
 
     sealed class ClinicalSubmissionState {
@@ -443,43 +450,55 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // ✅ Updated submitHamA with detailed logging
     fun submitHamA(patientId: String, clinicianId: String, itemScores: List<Int>) {
         viewModelScope.launch {
             _submissionState.value = ClinicalSubmissionState.Loading
             try {
+                Log.d("CLINICAL", "Submitting HAM-A: patientId=$patientId, clinicianId=$clinicianId, scores=$itemScores")
                 val response = ApiClient.authApi.submitHamA(HamARequest(patientId, clinicianId, itemScores))
                 if (response.isSuccessful && response.body() != null) {
                     val body = response.body()!!
+                    Log.d("CLINICAL", "HAM-A success: score=${body.totalScore}, severity=${body.severity}")
                     _submissionState.value = ClinicalSubmissionState.Success(
                         message = "HAM-A assessment saved",
                         score = body.totalScore,
                         severity = body.severity
                     )
                 } else {
-                    _submissionState.value = ClinicalSubmissionState.Error("Failed to submit HAM-A")
+                    val errorBody = response.errorBody()?.string()
+                    Log.e("CLINICAL", "HAM-A failed (${response.code()}): $errorBody")
+                    _submissionState.value = ClinicalSubmissionState.Error("Failed to submit HAM-A: ${errorBody ?: "unknown error"}")
                 }
             } catch (e: Exception) {
+                Log.e("CLINICAL", "HAM-A exception", e)
                 _submissionState.value = ClinicalSubmissionState.Error(e.message ?: "Network error")
             }
         }
     }
 
+    // ✅ Updated submitHdrs with detailed logging
     fun submitHdrs(patientId: String, clinicianId: String, itemScores: List<Int>) {
         viewModelScope.launch {
             _submissionState.value = ClinicalSubmissionState.Loading
             try {
+                Log.d("CLINICAL", "Submitting HDRS: patientId=$patientId, clinicianId=$clinicianId, scores=${itemScores.size} items")
                 val response = ApiClient.authApi.submitHdrs(HdrsRequest(patientId, clinicianId, itemScores))
                 if (response.isSuccessful && response.body() != null) {
                     val body = response.body()!!
+                    Log.d("CLINICAL", "HDRS success: score=${body.totalScore}, severity=${body.severity}")
                     _submissionState.value = ClinicalSubmissionState.Success(
                         message = "HDRS assessment saved",
                         score = body.totalScore,
                         severity = body.severity
                     )
                 } else {
-                    _submissionState.value = ClinicalSubmissionState.Error("Failed to submit HDRS")
+                    val errorBody = response.errorBody()?.string()
+                    Log.e("CLINICAL", "HDRS failed (${response.code()}): $errorBody")
+                    _submissionState.value = ClinicalSubmissionState.Error("Failed to submit HDRS: ${errorBody ?: "unknown error"}")
                 }
             } catch (e: Exception) {
+                Log.e("CLINICAL", "HDRS exception", e)
                 _submissionState.value = ClinicalSubmissionState.Error(e.message ?: "Network error")
             }
         }
@@ -503,9 +522,9 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
     private val _clinicianRegisterState = MutableStateFlow<RegisterState>(RegisterState.Idle)
     val clinicianRegisterState: StateFlow<RegisterState> = _clinicianRegisterState.asStateFlow()
 
-// Inside AuthViewModel.kt – replace the existing registerClinician function with this:
-
-// Inside AuthViewModel.kt – replace the registerClinician function
+    // ✅ New flow for clinician registration result
+    private val _clinicianRegResult = MutableStateFlow<ClinicianRegResult?>(null)
+    val clinicianRegResult: StateFlow<ClinicianRegResult?> = _clinicianRegResult.asStateFlow()
 
     fun registerClinician(name: String, email: String, password: String, age: Int, gender: String) {
         viewModelScope.launch {
@@ -516,6 +535,8 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
                 if (response.isSuccessful && response.body() != null) {
                     val body = response.body()!!
                     if (body.success) {
+                        // ✅ Store the result for showing registration ID to the clinician
+                        _clinicianRegResult.value = ClinicianRegResult(body.registration_id, body.name, body.user_id)
                         _clinicianRegisterState.value = RegisterState.Success("Clinician registered! Please login.")
                     } else {
                         _clinicianRegisterState.value = RegisterState.Error(body.message ?: "Registration failed")
@@ -529,8 +550,13 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
+
     fun resetClinicianRegisterState() {
         _clinicianRegisterState.value = RegisterState.Idle
+    }
+
+    fun resetClinicianRegResult() {
+        _clinicianRegResult.value = null
     }
 
     fun logout() {
@@ -548,7 +574,6 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
             resetRegistrationFlow()
         }
     }
-
 
     fun getPrefs() = prefs
 }

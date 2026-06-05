@@ -1,6 +1,7 @@
 package com.example.unifiedapp.ui.clinical
 
 import android.content.Context
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,6 +21,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.unifiedapp.ui.views.AuthViewModel
+import com.example.unifiedapp.ui.views.UserPreferences
+import kotlinx.coroutines.launch
 
 // HDRS questions (17 items) with their max scores
 data class HdrsQuestion(val text: String, val maxScore: Int)
@@ -53,6 +56,9 @@ fun HdrSQuestionnaireScreen(
     authViewModel: AuthViewModel = viewModel()
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val userPreferences = UserPreferences(context)
+
     var answers by remember { mutableStateOf(List(17) { 0 }) }
     var currentQuestion by remember { mutableIntStateOf(0) }
     val submissionState by authViewModel.submissionState.collectAsState()
@@ -190,9 +196,16 @@ fun HdrSQuestionnaireScreen(
                 Button(
                     onClick = {
                         if (currentQuestion == 16) {
-                            val clinicianId = context.getSharedPreferences("clinician_session", Context.MODE_PRIVATE)
-                                .getString("user_id", "") ?: ""
-                            authViewModel.submitHdrs(patientId, clinicianId, answers)
+                            scope.launch {
+                                // ✅ Get clinician ID from UserPreferences (UUID)
+                                val clinicianId = userPreferences.getClinicianUserId()
+                                if (clinicianId.isNullOrBlank()) {
+                                    Toast.makeText(context, "Clinician ID not found. Please login again.", Toast.LENGTH_LONG).show()
+                                    return@launch
+                                }
+                                Log.d("HDRS", "Submitting: patientId=$patientId, clinicianId=$clinicianId, scores=$answers")
+                                authViewModel.submitHdrs(patientId, clinicianId, answers)
+                            }
                         } else {
                             currentQuestion++
                         }
