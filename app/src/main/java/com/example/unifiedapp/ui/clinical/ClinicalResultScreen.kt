@@ -26,7 +26,7 @@ fun ClinicalResultScreen(
     severity: String,
     type: String // "ham_a" or "hdrs"
 ) {
-    val title = if (type == "ham_a") "HAM-A Assessment Result" else "HDRS Assessment Result"
+    val title = if (type == "ham_a") "HAM-A Assessment Result" else "HAM-D Assessment Result"
     val maxScore = if (type == "ham_a") 56 else 52
     val color = if (type == "ham_a") Color(0xFF9D8DF1) else Color(0xFF10B981)
 

@@ -186,7 +186,7 @@ fun PatientCard(
                     }
                     if (patient.latestHdrsScore != null) {
                         Text(
-                            text = "HDRS: ${patient.latestHdrsScore}",
+                            text = "HAM-D: ${patient.latestHdrsScore}",
                             fontSize = 12.sp,
                             color = Color(0xFF10B981)
                         )
