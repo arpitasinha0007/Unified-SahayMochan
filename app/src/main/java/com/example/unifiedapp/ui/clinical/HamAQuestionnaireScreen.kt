@@ -6,7 +6,9 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -88,10 +90,12 @@ fun HamAQuestionnaireScreen(
         },
         containerColor = Color(0xFFFAF8FF)
     ) { paddingValues ->
+        // Make the whole content scrollable so the Next button is always accessible
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
             Card(
@@ -136,6 +140,7 @@ fun HamAQuestionnaireScreen(
                     )
                     Spacer(modifier = Modifier.height(20.dp))
 
+                    // Radio buttons (only 5 options, no need for extra scrolling, but keep as is)
                     for (score in 0..4) {
                         val isSelected = answers[currentQuestion] == score
                         Row(
@@ -179,8 +184,9 @@ fun HamAQuestionnaireScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(24.dp))
 
+            // Buttons row – now always reachable because the whole column is scrollable
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -196,7 +202,6 @@ fun HamAQuestionnaireScreen(
                     onClick = {
                         if (currentQuestion == 13) {
                             scope.launch {
-                                // ✅ Get clinician ID from UserPreferences (UUID)
                                 val clinicianId = userPreferences.getClinicianUserId()
                                 if (clinicianId.isNullOrBlank()) {
                                     Toast.makeText(context, "Clinician ID not found. Please login again.", Toast.LENGTH_LONG).show()
@@ -215,6 +220,8 @@ fun HamAQuestionnaireScreen(
                     Text(if (currentQuestion == 13) "Submit" else "Next")
                 }
             }
+
+            Spacer(modifier = Modifier.height(24.dp)) // Extra bottom padding
         }
     }
 }
