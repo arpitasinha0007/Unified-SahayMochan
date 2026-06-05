@@ -25,20 +25,20 @@ import com.example.unifiedapp.ui.views.UserPreferences
 import kotlinx.coroutines.launch
 
 val hamAQuestions = listOf(
-    "1. Anxious mood",
-    "2. Tension",
-    "3. Fears",
-    "4. Insomnia",
-    "5. Intellectual (cognitive)",
-    "6. Depressed mood",
-    "7. Somatic (muscular)",
-    "8. Somatic (sensory)",
-    "9. Cardiovascular symptoms",
-    "10. Respiratory symptoms",
-    "11. Gastrointestinal symptoms",
-    "12. Genitourinary symptoms",
-    "13. Autonomic symptoms",
-    "14. Behavior at interview"
+    "1. Anxious mood\nWorries, anticipation of the worst, fearful anticipation, irritability.",
+    "2. Tension\nFeelings of tension, fatigability, startle response, moved to tears easily, trembling, feelings of restlessness, inability to relax.",
+    "3. Fears\nOf dark, of strangers, of being left alone, of animals, of traffic, of crowds.",
+    "4. Insomnia\nDifficulty in falling asleep, broken sleep, unsatisfying sleep and fatigue on waking, dreams, nightmares, night terrors.",
+    "5. Intellectual (cognitive)\nDifficulty in concentration, poor memory.",
+    "6. Depressed mood\nLoss of interest, lack of pleasure in hobbies, depression, early waking, diurnal swing.",
+    "7. Somatic (muscular)\nPains and aches, twitching, stiffness, myoclonic jerks, grinding of teeth, unsteady voice, increased muscular tone.",
+    "8. Somatic (sensory)\nTinnitus, blurring of vision, hot and cold flushes, feelings of weakness, pricking sensation.",
+    "9. Cardiovascular symptoms\nTachycardia, palpitations, pain in chest, throbbing of vessels, fainting feelings, missing beat.",
+    "10. Respiratory symptoms\nPressure or constriction in chest, choking feelings, sighing, dyspnea.",
+    "11. Gastrointestinal symptoms\nDifficulty in swallowing, wind abdominal pain, burning sensations, abdominal fullness, nausea, vomiting, borborygmi, looseness of bowels, loss of weight, constipation.",
+    "12. Genitourinary symptoms\nFrequency of micturition, urgency of micturition, amenorrhea, menorrhagia, development of frigidity, premature ejaculation, loss of libido, impotence.",
+    "13. Autonomic symptoms\nDry mouth, flushing, pallor, tendency to sweat, giddiness, tension headache, raising of hair.",
+    "14. Behavior at interview\nFidgeting, restlessness or pacing, tremor of hands, furrowed brow, strained face, sighing or rapid respiration, facial pallor, swallowing, etc."
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

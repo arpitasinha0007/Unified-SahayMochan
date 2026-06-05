@@ -27,6 +27,7 @@ import com.example.unifiedapp.ui.views.AuthViewModel
 import com.example.unifiedapp.ui.views.PatientItem
 import com.example.unifiedapp.ui.views.UserPreferences
 import kotlinx.coroutines.launch
+import com.example.unifiedapp.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -65,11 +66,13 @@ fun ClinicianDashboardScreen(
                         scope.launch {
                             userPreferences.clearClinicianSession()
                         }
-                        navController.popBackStack()
+                        // Navigate to Auth screen and clear entire back stack
+                        navController.navigate(Screen.AUTH) {
+                            popUpTo(0) { inclusive = true }
+                        }
                     }) {
                         Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout")
-                    }
-                }
+                    }                }
             )
         },
         containerColor = Color(0xFFFAF8FF)
@@ -215,7 +218,7 @@ fun PatientCard(
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("HDRS", color = Color.White)
+                    Text("HAM-D", color = Color.White)
                 }
             }
         }
