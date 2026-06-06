@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.util.Log
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -228,6 +229,13 @@ fun ResultScreen(
         }
     }
 
+    // Handle system back button – go to dashboard and clear back stack
+    BackHandler {
+        navController.navigate(Screen.DASHBOARD) {
+            popUpTo(0) { inclusive = true }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(Color.Transparent)) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -319,35 +327,76 @@ fun ResultScreen(
     }
 }
 
-// ============ THE REST OF THE COMPOSABLES (UploadDataButton, UploadProgressCard, UploadSuccessCard, startUpload, UploadStatus, UploadErrorCard, UserInfoCard, InfoChipEnhanced, EnhancedAssessmentCard, EnhancedRecommendationsCard, EnhancedRecommendationItem, DownloadReportButton, AssessmentHeader, EnhancedSetuPromoCard, EnhancedWellnessToolsCard, ToolItemEnhanced, FeaturePill, getSeverityDataFromScore, getSeverityDataFromClass) ============
-// Keep them exactly as they were in your original file, but with the following fixes:
+// ============ UPDATED ASSESSMENT HEADER (only one, correct version) ============
+@Composable
+fun AssessmentHeader(
+    navController: NavController,
+    accentColor: Color
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 10.dp)
+    ) {
+        TextButton(
+            onClick = {
+                navController.navigate(Screen.DASHBOARD) {
+                    popUpTo(0) { inclusive = true } // Clear entire back stack
+                }
+            },
+            colors = ButtonDefaults.textButtonColors(contentColor = Color.Gray),
+            contentPadding = PaddingValues(0.dp)
+        ) {
+            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(16.dp))
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Back to Dashboard", fontSize = 14.sp)
+        }
 
-// 1. In DownloadReportButton composable, fix LinearProgressIndicator:
-//    Replace `progress = downloadProgress / 100f` with `progress = { downloadProgress / 100f }`
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(top = 16.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(60.dp)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(GradientOrangeRed),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Default.Favorite,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(16.dp))
+            Column {
+                Text(
+                    "Assessment Results",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1F2937)
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(accentColor)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        "Questionnaire + AI Analysis",
+                        fontSize = 14.sp,
+                        color = Color(0xFF6B7280)
+                    )
+                }
+            }
+        }
+    }
+}
 
-// 2. Replace `Divider` with `HorizontalDivider` in EnhancedRecommendationItem
-
-// Since the full file is very long, I've provided the critical fixes above.
-// Please apply these changes to your existing file.
-
-// ============ ALL OTHER COMPOSABLES REMAIN UNCHANGED ============
-// (UploadDataButton, UploadProgressCard, UploadSuccessCard, startUpload, UploadStatus, UploadErrorCard,
-//  UserInfoCard, InfoChipEnhanced, EnhancedAssessmentCard, EnhancedRecommendationsCard, EnhancedRecommendationItem,
-//  DownloadReportButton, AssessmentHeader, EnhancedSetuPromoCard, EnhancedWellnessToolsCard, ToolItemEnhanced,
-//  FeaturePill, getSeverityDataFromScore, getSeverityDataFromClass, etc.)
-
-// → Keep all the existing helper composables exactly as they were in your original file.
-// For brevity, they are not repeated here – but they must be present in your final file.
-
-// ============ NOTE ============
-// Make sure to include all the existing composables (UploadDataButton, UploadProgressCard, etc.)
-// from your current ResultScreen.kt. The code above only shows the main ResultScreen function
-// with the added trial decrement. All other helper functions must remain exactly as you had them.
-// ============ THE REST OF YOUR COMPOSABLES (UploadDataButton, UserInfoCard, etc.) ============
-// → These remain exactly as they were in your original file.
-// → I am not repeating them here – they are unchanged.
-// → Copy the entire file from your project and replace only the ResultScreen function above,
-//    and keep all other helper composables identical to your current working version.
 // ============ UPLOAD BUTTON COMPOSABLE ============
 @Composable
 fun UploadDataButton(
@@ -998,7 +1047,7 @@ fun InfoChipEnhanced(
     }
 }
 
-// ============ ENHANCED ASSESSMENT CARD ============
+// ============ ENHANCED ASSESSMENT CARD (never used, but kept for compatibility) ============
 @Composable
 fun EnhancedAssessmentCard(
     title: String,
@@ -1506,76 +1555,6 @@ fun DownloadReportButton(
             Text("PDF will be saved to Downloads/unifiedapp/Reports/", fontSize = 11.sp, color = Color(0xFF9CA3AF), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             if (downloadedFilePath != null && !isDownloading) {
                 Text(text = "Last saved: ${downloadedFilePath!!.substringAfterLast("/")}", fontSize = 10.sp, color = Color(0xFF6B7280), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 4.dp))
-            }
-        }
-    }
-}
-
-// ============ HEADER ============
-@Composable
-fun AssessmentHeader(
-    navController: NavController,
-    accentColor: Color
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(start = 20.dp, end = 20.dp, top = 24.dp, bottom = 10.dp)
-    ) {
-        TextButton(
-            onClick = {
-                navController.navigate(Screen.DASHBOARD) {
-                    popUpTo(Screen.LAUNCHER) { inclusive = true }
-                }
-            },
-            colors = ButtonDefaults.textButtonColors(contentColor = Color.Gray),
-            contentPadding = PaddingValues(0.dp)
-        ) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null, modifier = Modifier.size(16.dp))
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Back to Dashboard", fontSize = 14.sp)
-        }
-
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(top = 16.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(60.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(GradientOrangeRed),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.Favorite,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(32.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
-                Text(
-                    "Assessment Results",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1F2937)
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .clip(CircleShape)
-                            .background(accentColor)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        "Questionnaire + AI Analysis",
-                        fontSize = 14.sp,
-                        color = Color(0xFF6B7280)
-                    )
-                }
             }
         }
     }

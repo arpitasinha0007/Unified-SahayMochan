@@ -355,7 +355,7 @@ fun UnifiedHomeContent(
                         }
 
                         Spacer(Modifier.height(16.dp))
-                        Text("Takes 3–4 minutes • Camera required", style = MaterialTheme.typography.labelSmall, color = Color(0xFF6B7280))
+                        Text("Takes 3–4 minutes • Camera required • Private and Secure", style = MaterialTheme.typography.labelSmall, color = Color(0xFF6B7280))
                     }
                 }
             }
@@ -449,7 +449,7 @@ fun UnifiedHomeContent(
                         }
 
                         Spacer(Modifier.height(16.dp))
-                        Text("Takes 2–3 minutes • Private & secure", style = MaterialTheme.typography.labelSmall, color = Color(0xFF6B7280))
+                        Text("Takes 3-4 minutes • Camera required • Private & Secure", style = MaterialTheme.typography.labelSmall, color = Color(0xFF6B7280))
                     }
                 }
             }
