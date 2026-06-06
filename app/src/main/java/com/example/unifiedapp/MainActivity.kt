@@ -28,7 +28,7 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     UnifiedNavGraph(
                         navController = navController,
-                        startDestination = Screen.LAUNCHER
+                        startDestination = Screen.AUTH   // ✅ Changed from Screen.LAUNCHER to Screen.AUTH
                     )
                 }
             }
