@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,6 +19,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import com.example.unifiedapp.navigation.Screen
 
 // Updated color palette with blueish accent throughout
 val BlueLight = Color(0xFFE3F2FD)      // Very light blue
@@ -39,7 +41,20 @@ data class BreathState(
 )
 
 @Composable
-fun BreathingScreen(onBack: () -> Unit) {
+fun BreathingScreen(
+    onBack: () -> Unit = {},
+    navController: NavController? = null
+) {
+    val handleBack = {
+        if (navController != null) {
+            navController.navigate(Screen.WELLNESS) {
+                popUpTo(0) { inclusive = true }
+            }
+        } else {
+            onBack()
+        }
+    }
+
     val infiniteTransition = rememberInfiniteTransition(label = "breathing_cycle")
 
     // 19-second cycle (4-7-8)
@@ -100,13 +115,13 @@ fun BreathingScreen(onBack: () -> Unit) {
         ) {
             // Back button
             IconButton(
-                onClick = onBack,
+                onClick = handleBack,
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .padding(16.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
                     tint = BlueDeep.copy(alpha = 0.7f)
                 )
@@ -187,7 +202,7 @@ fun BreathingScreen(onBack: () -> Unit) {
 
                 // Done Button
                 Button(
-                    onClick = onBack,
+                    onClick = handleBack,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = BlueAccent,
                         contentColor = Color.White

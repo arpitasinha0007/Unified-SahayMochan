@@ -11,7 +11,7 @@ import androidx.compose.material.icons.filled.SelfImprovement
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.SentimentSatisfiedAlt
 import androidx.compose.material.icons.filled.Stars
-import androidx.compose.material.icons.outlined.FavoriteBorder // Added for your heart icon
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -28,6 +28,8 @@ import androidx.compose.foundation.clickable
 import androidx.navigation.NavController
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.Spa
+import com.example.unifiedapp.navigation.Screen
+
 @Composable
 fun WellnessScreen(navController: NavController) {
     val TipBubbleShape = GenericShape { size, _ ->
@@ -53,29 +55,24 @@ fun WellnessScreen(navController: NavController) {
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            // --- HEADER WITH NEW ICON ---
-            // --- FULL WIDTH MILKY STRIP ---
+            // Header
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    // White with low alpha and a light top/bottom border for the "strip" look
                     .background(Color.White.copy(alpha = 0.4f))
                     .border(width = 0.5.dp, color = Color.White.copy(alpha = 0.3f))
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 20.dp), // Content padding inside the strip
+                        .padding(horizontal = 24.dp, vertical = 20.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // YOUR BLUE HEART BOX
                     Box(
                         modifier = Modifier
                             .size(48.dp)
                             .background(
-                                Brush.linearGradient(
-                                    listOf(Color(0xFF29B6F6), Color(0xFF26C6DA))
-                                ),
+                                Brush.linearGradient(listOf(Color(0xFF29B6F6), Color(0xFF26C6DA))),
                                 RoundedCornerShape(14.dp)
                             ),
                         contentAlignment = Alignment.Center
@@ -106,77 +103,63 @@ fun WellnessScreen(navController: NavController) {
                 }
             }
 
-// Add a small spacer after the strip so the cards don't touch it directly
             Spacer(modifier = Modifier.height(16.dp))
 
-            // --- TOOLS LIST ---
             Column(
                 modifier = Modifier.padding(horizontal = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Add this after the Mood Tracker card or Journal card
                 WellnessToolCard(
                     title = "5-4-3-2-1 Grounding",
                     subtitle = "Anchor yourself in the present",
                     icon = Icons.Outlined.Spa,
-
                     iconBg = Brush.linearGradient(
                         colors = listOf(
-                            Color(0xFFF2C94C), // yellow
-                            Color(0xFFF6A97A), // peach
-                            Color(0xFFF27AA5), // pink
-                            Color(0xFFE843C4)  // magenta
+                            Color(0xFFF2C94C), Color(0xFFF6A97A), Color(0xFFF27AA5), Color(0xFFE843C4)
                         )
                     ),
-
-                    containerColor = Color(0xFFFFF0F6).copy(alpha = 0.85f), // soft pink card
+                    containerColor = Color(0xFFFFF0F6).copy(alpha = 0.85f),
                     borderColor = Color(0xFFF59DBB),
-
-                    onClick = { navController.navigate("grounding") }
+                    onClick = { navController.navigate(Screen.GROUNDING) }
                 )
                 WellnessToolCard(
                     title = "4-7-8 Breathing",
                     subtitle = "Calming breathing technique",
                     icon = Icons.Default.SelfImprovement,
                     iconBg = Brush.linearGradient(listOf(Color(0xFF3B82F6), Color(0xFF2DD4BF))),
-                    containerColor = Color(0xFFE0F2FE).copy(alpha = 0.7f), // Soft Blue
+                    containerColor = Color(0xFFE0F2FE).copy(alpha = 0.7f),
                     borderColor = Color(0xFF7DD3FC),
-                    onClick = { navController.navigate("breathing") }
+                    onClick = { navController.navigate(Screen.BREATHING) }
                 )
-
                 WellnessToolCard(
                     title = "Calming Sounds",
                     subtitle = "Nature sounds & ambient music",
                     icon = Icons.Default.MusicNote,
                     iconBg = Brush.linearGradient(listOf(Color(0xFFA855F7), Color(0xFFEC4899))),
-                    containerColor = Color(0xFFF5F3FF).copy(alpha = 0.7f), // Soft Purple
+                    containerColor = Color(0xFFF5F3FF).copy(alpha = 0.7f),
                     borderColor = Color(0xFFC4B5FD),
-                    onClick = { navController.navigate("sounds") }
+                    onClick = { navController.navigate(Screen.SOUNDS) }
                 )
-
-
                 WellnessToolCard(
                     title = "Mood Tracker",
                     subtitle = "Daily emotional check-in",
                     icon = Icons.Default.SentimentSatisfiedAlt,
                     iconBg = Brush.linearGradient(listOf(Color(0xFF34D399), Color(0xFF99F6E4))),
-                    containerColor = Color(0xFFECFDF5).copy(alpha = 0.7f), // Soft Green
+                    containerColor = Color(0xFFECFDF5).copy(alpha = 0.7f),
                     borderColor = Color(0xFFA7F3D0),
-                    onClick = { navController.navigate("mood-tracker") }
+                    onClick = { navController.navigate(Screen.MOOD_TRACKER) } // Fixed route
                 )
-                // Journal (right column) - NEW
                 WellnessToolCard(
                     title = "Journal",
                     subtitle = "Write your thoughts",
                     icon = Icons.Outlined.Book,
-                    iconBg = Brush.linearGradient(listOf(Color(0xFFAB47BC), Color(0xFF7E57C2))), // Purple gradient
-                    containerColor = Color(0xFFF3E8FF).copy(alpha = 0.7f), // Light purple background
-                    borderColor = Color(0xFFC084FC), // Light purple border
-                    onClick = { navController.navigate("journal") }
+                    iconBg = Brush.linearGradient(listOf(Color(0xFFAB47BC), Color(0xFF7E57C2))),
+                    containerColor = Color(0xFFF3E8FF).copy(alpha = 0.7f),
+                    borderColor = Color(0xFFC084FC),
+                    onClick = { navController.navigate(Screen.JOURNAL) }
                 )
 
-
-                // --- WELLNESS TIP ---
+                // Wellness Tip Card
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     shape = TipBubbleShape,
@@ -223,15 +206,22 @@ fun WellnessScreen(navController: NavController) {
 }
 
 @Composable
-private fun WellnessToolCard(title: String, subtitle: String, icon: ImageVector, iconBg: Brush, containerColor: Color, // Add this
-                             borderColor: Color,onClick: () -> Unit) {
+private fun WellnessToolCard(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    iconBg: Brush,
+    containerColor: Color,
+    borderColor: Color,
+    onClick: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
             .padding(vertical = 4.dp),
         shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor), // Use here
+        colors = CardDefaults.cardColors(containerColor = containerColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(1.dp, borderColor)
     ) {

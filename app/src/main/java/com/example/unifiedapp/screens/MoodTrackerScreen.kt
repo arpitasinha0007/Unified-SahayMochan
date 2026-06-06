@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
@@ -33,6 +34,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.Canvas
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import com.example.unifiedapp.navigation.Screen
 import com.example.unifiedapp.utils.MoodTrackerHelper
 import com.example.unifiedapp.utils.MoodTrackerViewModel
 import com.example.unifiedapp.utils.MoodType
@@ -102,7 +105,20 @@ fun getEnergyColorMood(level: Float): Color {
 }
 
 @Composable
-fun MoodTrackerScreen(onBack: () -> Unit) {
+fun MoodTrackerScreen(
+    onBack: () -> Unit = {},
+    navController: NavController? = null
+) {
+    val handleBack = {
+        if (navController != null) {
+            navController.navigate(Screen.WELLNESS) {
+                popUpTo(0) { inclusive = true }
+            }
+        } else {
+            onBack()
+        }
+    }
+
     val context = LocalContext.current
     val helper = remember { MoodTrackerHelper(context) }
     val viewModel = remember { MoodTrackerViewModel(helper) }
@@ -146,7 +162,7 @@ fun MoodTrackerScreen(onBack: () -> Unit) {
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            GlassHeaderMood(onBack = onBack)
+            GlassHeaderMood(onBack = handleBack)
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -239,7 +255,7 @@ fun GlassHeaderMood(onBack: () -> Unit) {
                 modifier = Modifier.size(40.dp)
             ) {
                 Icon(
-                    Icons.Default.ArrowBack,
+                    Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
                     tint = Color.Black
                 )
@@ -282,6 +298,10 @@ fun GlassHeaderMood(onBack: () -> Unit) {
     }
 }
 
+// ============ THE REST OF THE COMPOSABLES REMAIN EXACTLY AS THEY WERE ============
+// (MoodInputCardMood, MoodChipMood, QuickStatsCardMood, HappinessGraphCardMood, etc.)
+// They are omitted here for brevity but must be kept identical to your original file.
+// Make sure to copy them from your current working version.
 @Composable
 fun MoodInputCardMood(
     streak: Int,

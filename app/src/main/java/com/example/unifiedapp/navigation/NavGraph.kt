@@ -57,7 +57,7 @@ object Screen {
 
     // Clinician routes
     const val CLINICIAN_DASHBOARD = "clinician_dashboard"
-    const val CLINICIAN_REGISTER = "clinician_register"   // ✅ Added
+    const val CLINICIAN_REGISTER = "clinician_register"
     const val HAM_A_ASSESSMENT = "ham_a_assessment/{patientId}/{patientName}"
     const val HDRS_ASSESSMENT = "hdrs_assessment/{patientId}/{patientName}"
     const val CLINICAL_RESULT = "clinical_result/{score}/{severity}/{type}"
@@ -95,7 +95,7 @@ fun UnifiedNavGraph(
             )
         }
 
-        // ✅ Clinician Registration
+        // Clinician Registration
         composable(Screen.CLINICIAN_REGISTER) {
             ClinicianRegisterScreen(navController = navController)
         }
@@ -196,7 +196,7 @@ fun UnifiedNavGraph(
             AssessmentHistoryScreen(navController = navController)
         }
 
-        // ========== Wellness Tools ==========
+        // ========== Wellness Tools (restored original behavior) ==========
         composable(Screen.WELLNESS) {
             WellnessScreen(navController = navController)
         }

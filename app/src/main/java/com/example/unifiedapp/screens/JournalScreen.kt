@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.AutoStories
@@ -39,7 +40,7 @@ import java.util.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.navigation.NavController
-
+import com.example.unifiedapp.navigation.Screen
 
 // Add these subtle gradient colors at the top
 val CreamGradient = Brush.linearGradient(
@@ -205,17 +206,18 @@ class JournalScreen {
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         // Back button - matches other wellness screens
+                        // Back button
+                        // Back button - same as other wellness tools
                         IconButton(
-                            onClick = { navController.popBackStack() },
+                            onClick = { navController.popBackStack() },   // ✅ simple pop
                             modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
-                                Icons.Default.ArrowBack,
+                                Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
                                 tint = Color.Black
                             )
                         }
-
                         Spacer(modifier = Modifier.width(8.dp))
 
                         // Icon with gradient background - keeping journal's purple gradient

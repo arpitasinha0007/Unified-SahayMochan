@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,20 +23,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
 import com.example.unifiedapp.R
 import com.example.unifiedapp.utils.SoundPlayerManager
 
-// Data model for our soundscapes - Updated to include resource ID
+// Data model for our soundscapes
 data class SoundItem(
     val id: String,
     val name: String,
     val description: String,
     val icon: ImageVector,
     val gradient: List<Color>,
-    val resId: Int  // Added resource ID for audio files
+    val resId: Int
 )
 
-// Updated SOUNDS list with resource IDs
 val SOUNDS = listOf(
     SoundItem("rain", "Rain", "Gentle rainfall", Icons.Default.WaterDrop,
         listOf(Color(0xFF60A5FA), Color(0xFF22D3EE)), R.raw.rain),
@@ -53,20 +54,19 @@ val SOUNDS = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SoundScreen(onBack: () -> Unit) {
+fun SoundScreen(
+    onBack: () -> Unit = {},
+    navController: NavController? = null
+) {
     val context = LocalContext.current
-
-    // Create and remember the sound player manager
     val soundPlayer = remember { SoundPlayerManager(context) }
 
-    // Dispose the player when the composable leaves the composition
     DisposableEffect(Unit) {
         onDispose {
             soundPlayer.release()
         }
     }
 
-    // Observe states from the player
     val playingId by soundPlayer.currentSoundIdState
     val isPlaying by soundPlayer.isPlayingState
     val volume by soundPlayer.volumeState
@@ -90,13 +90,19 @@ fun SoundScreen(onBack: () -> Unit) {
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Back button - black like before
+                    // Back button: pop back stack if navController exists, else call onBack
                     IconButton(
-                        onClick = onBack,
+                        onClick = {
+                            if (navController != null) {
+                                navController.popBackStack()
+                            } else {
+                                onBack()
+                            }
+                        },
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
-                            Icons.Default.ArrowBack,
+                            Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = Color.Black
                         )
@@ -104,7 +110,6 @@ fun SoundScreen(onBack: () -> Unit) {
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    // Icon with gradient background
                     Box(
                         modifier = Modifier
                             .size(48.dp)
@@ -122,7 +127,6 @@ fun SoundScreen(onBack: () -> Unit) {
 
                     Spacer(modifier = Modifier.width(16.dp))
 
-                    // Title and subtitle - original colors
                     Column {
                         Text(
                             "Calming Sounds",
@@ -157,7 +161,6 @@ fun SoundScreen(onBack: () -> Unit) {
                 ) {
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Volume Control Card
                     VolumeCard(
                         volume = volume,
                         onVolumeChange = { soundPlayer.setVolume(it) },
@@ -166,7 +169,6 @@ fun SoundScreen(onBack: () -> Unit) {
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Sound Grid (2 columns)
                     SOUNDS.chunked(2).forEach { rowItems ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -189,14 +191,12 @@ fun SoundScreen(onBack: () -> Unit) {
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // Tips Card
                     TipsCard(gradient = orangePinkGradient)
 
                     Spacer(modifier = Modifier.height(100.dp))
                 }
             }
 
-            // Floating "Now Playing" Bar
             if (playingId != null) {
                 val currentSound = SOUNDS.find { it.id == playingId }
                 NowPlayingBar(
@@ -216,6 +216,9 @@ fun SoundScreen(onBack: () -> Unit) {
         }
     }
 }
+
+// Keep all your existing helper composables (VolumeCard, SoundCard, TipsCard, NowPlayingBar) exactly as they are.
+// No changes needed there.
 
 @Composable
 fun VolumeCard(volume: Float, onVolumeChange: (Float) -> Unit, gradient: Brush) {
@@ -286,7 +289,6 @@ fun SoundCard(sound: SoundItem, isPlaying: Boolean, onClick: () -> Unit, modifie
             Text(sound.description, fontSize = 12.sp, color = Color.Gray)
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Toggle Button
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -392,7 +394,6 @@ fun NowPlayingBar(
                 )
             }
 
-            // Play/Pause button
             IconButton(onClick = onPlayPause) {
                 Icon(
                     if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
@@ -402,9 +403,6 @@ fun NowPlayingBar(
                 )
             }
 
-
-
-            // Stop button
             Button(
                 onClick = onStop,
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFB923C)),

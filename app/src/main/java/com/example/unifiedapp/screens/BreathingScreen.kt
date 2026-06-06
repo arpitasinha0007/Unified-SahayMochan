@@ -10,7 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.SelfImprovement
@@ -24,6 +24,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import com.example.unifiedapp.navigation.Screen
 import kotlinx.coroutines.delay
 
 enum class BreathingPhase(val label: String, val duration: Int) {
@@ -35,11 +37,14 @@ enum class BreathingPhase(val label: String, val duration: Int) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun BreathingScreen(onBack: () -> Unit) {
+fun BreathingScreen(
+    onBack: () -> Unit = {},
+    navController: NavController? = null
+) {
     var isActive by remember { mutableStateOf(false) }
     var phase by remember { mutableStateOf(BreathingPhase.IDLE) }
-    var cycleCount by remember { mutableStateOf(0) }
-    var timeLeft by remember { mutableStateOf(0) }
+    var cycleCount by remember { mutableIntStateOf(0) }
+    var timeLeft by remember { mutableIntStateOf(0) }
 
     val scaleAnim = remember { Animatable(1f) }
 
@@ -86,6 +91,17 @@ fun BreathingScreen(onBack: () -> Unit) {
         )
     }
 
+    // Handle back button – navigate to wellness screen if navController is provided
+    val handleBack = {
+        if (navController != null) {
+            navController.navigate(Screen.WELLNESS) {
+                popUpTo(0) { inclusive = true }
+            }
+        } else {
+            onBack()
+        }
+    }
+
     val gradientBlue = Brush.linearGradient(
         colors = listOf(Color(0xFF38BDF8), Color(0xFF22D3EE))
     )
@@ -106,13 +122,13 @@ fun BreathingScreen(onBack: () -> Unit) {
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Back button - just arrow like SoundScreen
+                    // Back button with updated behavior
                     IconButton(
-                        onClick = onBack,
+                        onClick = handleBack,
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
-                            Icons.Default.ArrowBack,
+                            Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = Color.Black
                         )
@@ -120,12 +136,16 @@ fun BreathingScreen(onBack: () -> Unit) {
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    // Icon with gradient background
+                    // Icon with gradient background – fixed modifier chain
                     Box(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Brush.linearGradient(listOf(Color(0xFF3B82F6), Color(0xFF2DD4BF)))),
+                            .background(
+                                Brush.linearGradient(
+                                    listOf(Color(0xFF3B82F6), Color(0xFF2DD4BF))
+                                )
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -157,19 +177,17 @@ fun BreathingScreen(onBack: () -> Unit) {
             }
         }
     ) { padding ->
-        // Changed to LazyColumn for better scroll handling and padding control
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            // contentPadding applies padding INSIDE the scroll view, preventing clipping
             contentPadding = PaddingValues(
-                top = padding.calculateTopPadding() + 24.dp, // Clear Top Bar
+                top = padding.calculateTopPadding() + 24.dp,
                 start = 24.dp,
                 end = 24.dp,
-                bottom = 120.dp // Large bottom padding to clear the Bottom Navigation Bar
+                bottom = 120.dp
             ),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // --- Item 1: Breathing Circle Card ---
+            // Breathing Circle Card
             item {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -181,7 +199,6 @@ fun BreathingScreen(onBack: () -> Unit) {
                         modifier = Modifier.padding(32.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // Phase label ABOVE the circle
                         Text(
                             text = phase.label,
                             fontSize = 20.sp,
@@ -194,11 +211,18 @@ fun BreathingScreen(onBack: () -> Unit) {
                             modifier = Modifier.size(280.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            // Outer Glow Circles
-                            Box(modifier = Modifier.size(256.dp * scaleAnim.value).clip(CircleShape).background(Color(0xFF38BDF8).copy(alpha = 0.1f)))
-                            Box(modifier = Modifier.size(192.dp * scaleAnim.value).clip(CircleShape).background(Color(0xFF38BDF8).copy(alpha = 0.2f)))
-
-                            // Main Blue Circle with timer in the middle
+                            Box(
+                                modifier = Modifier
+                                    .size(256.dp * scaleAnim.value)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF38BDF8).copy(alpha = 0.1f))
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(192.dp * scaleAnim.value)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFF38BDF8).copy(alpha = 0.2f))
+                            )
                             Box(
                                 modifier = Modifier
                                     .size(128.dp * scaleAnim.value)
@@ -206,7 +230,6 @@ fun BreathingScreen(onBack: () -> Unit) {
                                     .background(gradientBlue),
                                 contentAlignment = Alignment.Center
                             ) {
-                                // Timer in the middle of circle
                                 Text(
                                     text = "$timeLeft",
                                     fontSize = 48.sp,
@@ -216,7 +239,7 @@ fun BreathingScreen(onBack: () -> Unit) {
                             }
                         }
 
-                        Spacer(Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(24.dp))
                         Text("Cycles Completed", fontSize = 14.sp, color = Color.Gray)
                         Text(
                             text = "$cycleCount",
@@ -224,10 +247,8 @@ fun BreathingScreen(onBack: () -> Unit) {
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF0EA5E9)
                         )
+                        Spacer(modifier = Modifier.height(24.dp))
 
-                        Spacer(Modifier.height(24.dp))
-
-                        // --- Controls ---
                         if (!isActive && phase == BreathingPhase.IDLE) {
                             Button(
                                 onClick = {
@@ -246,7 +267,7 @@ fun BreathingScreen(onBack: () -> Unit) {
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(Icons.Default.PlayArrow, contentDescription = null)
-                                        Spacer(Modifier.width(8.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
                                         Text("Start Exercise", fontWeight = FontWeight.Bold)
                                     }
                                 }
@@ -271,7 +292,7 @@ fun BreathingScreen(onBack: () -> Unit) {
                                     border = BorderStroke(2.dp, Color.LightGray)
                                 ) {
                                     Icon(Icons.Default.Refresh, contentDescription = null, tint = Color.DarkGray)
-                                    Spacer(Modifier.width(4.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
                                     Text("Reset", color = Color.DarkGray)
                                 }
                             }
@@ -280,10 +301,9 @@ fun BreathingScreen(onBack: () -> Unit) {
                 }
             }
 
-            // Spacer between cards
-            item { Spacer(Modifier.height(24.dp)) }
+            item { Spacer(modifier = Modifier.height(24.dp)) }
 
-            // --- Item 2: Instructions Card ---
+            // Instructions Card
             item {
                 Card(
                     colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -293,7 +313,7 @@ fun BreathingScreen(onBack: () -> Unit) {
                 ) {
                     Column(modifier = Modifier.padding(24.dp)) {
                         Text("How It Works", fontWeight = FontWeight.SemiBold, color = Color(0xFF1F2937))
-                        Spacer(Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         InstructionRow("4", "Breathe in through your nose", Color(0xFFDBEAFE), Color(0xFF2563EB))
                         InstructionRow("7", "Hold your breath comfortably", Color(0xFFF3E8FF), Color(0xFF9333EA))
@@ -320,7 +340,7 @@ fun InstructionRow(number: String, text: String, bgColor: Color, textColor: Colo
         ) {
             Text(number, color = textColor, fontWeight = FontWeight.Bold, fontSize = 14.sp)
         }
-        Spacer(Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(12.dp))
         Text(text, fontSize = 14.sp, color = Color(0xFF374151))
     }
 }

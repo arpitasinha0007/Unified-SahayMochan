@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Spa
 import androidx.compose.material3.*
@@ -28,6 +29,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import com.example.unifiedapp.navigation.Screen
 import kotlinx.coroutines.delay
 
 // ============ LOCAL COLOR DEFINITIONS (Unique names to avoid conflicts) ============
@@ -105,7 +108,20 @@ private val SenseAccentColors = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GroundingScreen(onBack: () -> Unit) {
+fun GroundingScreen(
+    onBack: () -> Unit = {},
+    navController: NavController? = null
+) {
+    val handleBack = {
+        if (navController != null) {
+            navController.navigate(Screen.WELLNESS) {
+                popUpTo(0) { inclusive = true }
+            }
+        } else {
+            onBack()
+        }
+    }
+
     val senseInputs = remember {
         mutableStateMapOf<Int, List<String>>().apply {
             (0..4).forEach { index ->
@@ -208,7 +224,7 @@ fun GroundingScreen(onBack: () -> Unit) {
                         .padding(horizontal = 20.dp, vertical = 16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Back button
+                    // Back button - uses handleBack
                     Box(
                         modifier = Modifier
                             .size(44.dp)
@@ -217,11 +233,11 @@ fun GroundingScreen(onBack: () -> Unit) {
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null
-                            ) { onBack() },
+                            ) { handleBack() },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            Icons.Default.ArrowBack,
+                            Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
                             tint = Color.White,
                             modifier = Modifier.size(24.dp)

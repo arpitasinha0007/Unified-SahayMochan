@@ -37,6 +37,8 @@ import com.example.unifiedapp.data.UserSessionManager
 import com.example.unifiedapp.navigation.Screen
 import com.example.unifiedapp.utils.TrialHelper
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 
 // New color palette for Home, Wellness, Profile
 private val LavenderPrimary = Color(0xFF9D8DF1)
@@ -62,7 +64,21 @@ fun DashboardScreen(
     val userName = userData?.name ?: ""
     val registrationId = userData?.registrationId ?: ""
 
-    var selectedTab by remember { mutableStateOf<BottomNavItem>(BottomNavItem.Home) }
+    val tabSaver = Saver<BottomNavItem, String>(
+        save = { it.route },
+        restore = { route ->
+            when (route) {
+                "home" -> BottomNavItem.Home
+                "wellness" -> BottomNavItem.Wellness
+                "profile" -> BottomNavItem.Profile
+                else -> BottomNavItem.Home
+            }
+        }
+    )
+
+    var selectedTab by rememberSaveable(stateSaver = tabSaver) {
+        mutableStateOf(BottomNavItem.Home)
+    }
 
     var showNoTrialsDialog by remember { mutableStateOf(false) }
     var remainingTrials by remember { mutableStateOf<Int?>(null) }
