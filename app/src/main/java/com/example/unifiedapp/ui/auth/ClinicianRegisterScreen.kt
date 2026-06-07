@@ -86,16 +86,19 @@ fun ClinicianRegisterScreen(
     val textSecondary = Color(0xFF6B7280)
     val errorRed = Color(0xFFEF4444)
 
+    // ✅ Added imePadding and navigationBarsPadding to make the screen scrollable when keyboard opens
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Brush.verticalGradient(colors = listOf(bgColor, Color.White)))
+            .imePadding()
+            .navigationBarsPadding()
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(rememberScrollState())
+                .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.height(40.dp))

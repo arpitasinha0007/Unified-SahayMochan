@@ -23,11 +23,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.unifiedapp.navigation.Screen
 import com.example.unifiedapp.ui.views.AuthViewModel
 import com.example.unifiedapp.ui.views.PatientItem
 import com.example.unifiedapp.ui.views.UserPreferences
 import kotlinx.coroutines.launch
-import com.example.unifiedapp.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,7 +44,6 @@ fun ClinicianDashboardScreen(
     var clinicianId by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        // ✅ Use UserPreferences to get clinician ID
         clinicianId = userPreferences.getClinicianUserId()
         if (clinicianId != null) {
             authViewModel.fetchPatients(clinicianId!!)
@@ -66,13 +65,13 @@ fun ClinicianDashboardScreen(
                         scope.launch {
                             userPreferences.clearClinicianSession()
                         }
-                        // Navigate to Auth screen and clear entire back stack
                         navController.navigate(Screen.AUTH) {
                             popUpTo(0) { inclusive = true }
                         }
                     }) {
                         Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout")
-                    }                }
+                    }
+                }
             )
         },
         containerColor = Color(0xFFFAF8FF)
