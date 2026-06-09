@@ -412,7 +412,9 @@ fun UnifiedAuthScreen(
                         OutlinedTextField(
                             value = signupRegId,
                             onValueChange = { signupRegId = it },
-                            label = { Text("Registration ID / Roll Number *") },
+
+                            label = { Text("Patient ID *") },
+
                             leadingIcon = { Icon(Icons.Default.Badge, null, tint = AuthLavenderPrimary) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),

@@ -79,7 +79,7 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
     sealed class ClinicalSubmissionState {
         object Idle : ClinicalSubmissionState()
         object Loading : ClinicalSubmissionState()
-        data class Success(val message: String, val score: Int, val severity: String) : ClinicalSubmissionState()
+        data class Success(val message: String, val score: Int, val severity: String, val assessmentId: String) : ClinicalSubmissionState()
         data class Error(val message: String) : ClinicalSubmissionState()
     }
 
@@ -459,11 +459,12 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
                 val response = ApiClient.authApi.submitHamA(HamARequest(patientId, clinicianId, itemScores))
                 if (response.isSuccessful && response.body() != null) {
                     val body = response.body()!!
-                    Log.d("CLINICAL", "HAM-A success: score=${body.totalScore}, severity=${body.severity}")
+                    Log.d("CLINICAL", "HAM-A success: score=${body.totalScore}, severity=${body.severity}, assessmentId=${body.assessmentId}")
                     _submissionState.value = ClinicalSubmissionState.Success(
                         message = "HAM-A assessment saved",
                         score = body.totalScore,
-                        severity = body.severity
+                        severity = body.severity,
+                        assessmentId = body.assessmentId   // ✅ added
                     )
                 } else {
                     val errorBody = response.errorBody()?.string()
@@ -477,7 +478,6 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    // ✅ Updated submitHdrs with detailed logging
     fun submitHdrs(patientId: String, clinicianId: String, itemScores: List<Int>) {
         viewModelScope.launch {
             _submissionState.value = ClinicalSubmissionState.Loading
@@ -486,11 +486,12 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
                 val response = ApiClient.authApi.submitHdrs(HdrsRequest(patientId, clinicianId, itemScores))
                 if (response.isSuccessful && response.body() != null) {
                     val body = response.body()!!
-                    Log.d("CLINICAL", "HDRS success: score=${body.totalScore}, severity=${body.severity}")
+                    Log.d("CLINICAL", "HDRS success: score=${body.totalScore}, severity=${body.severity}, assessmentId=${body.assessmentId}")
                     _submissionState.value = ClinicalSubmissionState.Success(
                         message = "HDRS assessment saved",
                         score = body.totalScore,
-                        severity = body.severity
+                        severity = body.severity,
+                        assessmentId = body.assessmentId   // ✅ added
                     )
                 } else {
                     val errorBody = response.errorBody()?.string()
@@ -503,6 +504,7 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
+
 
     fun resetSubmissionState() {
         _submissionState.value = ClinicalSubmissionState.Idle

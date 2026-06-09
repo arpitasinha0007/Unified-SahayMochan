@@ -4,6 +4,9 @@ import retrofit2.Call
 import retrofit2.Response
 import retrofit2.http.*
 import com.example.unifiedapp.ui.views.*
+import okhttp3.RequestBody
+import okhttp3.ResponseBody
+import retrofit2.http.*
 
 interface AuthApi {
 
@@ -52,6 +55,14 @@ interface AuthApi {
         @Query("type") type: String
     ): Response<TrialCheckResponse>
 
+
+    @POST("api/severity/direct")
+    suspend fun updateSeverityDirect(
+        @Query("assessment_type") assessmentType: String,
+        @Query("assessment_id") assessmentId: String,
+        @Query("severity") severity: String
+    ): Response<ResponseBody>
+
     @POST("api/trials/use")
     suspend fun useTrial(@Body request: UseTrialRequest): Response<UseTrialResponse>
 
@@ -72,6 +83,13 @@ interface AuthApi {
         @Query("registration_id") registrationId: String,
         @Query("password") password: String
     ): Response<ClinicianLoginResponse>
+
+    @PUT("api/assessments/{assessment_type}/{assessment_id}/severity")
+    suspend fun updateClinicianSeverity(
+        @Path("assessment_type") assessmentType: String,
+        @Path("assessment_id") assessmentId: String,
+        @Body body: RequestBody
+    ): Response<ResponseBody>
 
     @GET("api/clinician/patients")
     suspend fun getPatients(

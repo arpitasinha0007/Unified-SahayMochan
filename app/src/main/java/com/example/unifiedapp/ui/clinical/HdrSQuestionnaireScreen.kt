@@ -125,7 +125,7 @@ fun HdrSQuestionnaireScreen(
         when (val state = submissionState) {
             is AuthViewModel.ClinicalSubmissionState.Success -> {
                 Toast.makeText(context, state.message, Toast.LENGTH_SHORT).show()
-                navController.navigate("clinical_result/${state.score}/${state.severity}/hdrs") {
+                navController.navigate("clinical_result/${state.score}/${state.severity}/hdrs/${state.assessmentId}") {
                     popUpTo("clinician_dashboard") { inclusive = false }
                 }
                 authViewModel.resetSubmissionState()
@@ -137,7 +137,6 @@ fun HdrSQuestionnaireScreen(
             else -> {}
         }
     }
-
     Scaffold(
         topBar = {
             TopAppBar(

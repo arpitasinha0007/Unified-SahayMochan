@@ -60,7 +60,7 @@ object Screen {
     const val CLINICIAN_REGISTER = "clinician_register"
     const val HAM_A_ASSESSMENT = "ham_a_assessment/{patientId}/{patientName}"
     const val HDRS_ASSESSMENT = "hdrs_assessment/{patientId}/{patientName}"
-    const val CLINICAL_RESULT = "clinical_result/{score}/{severity}/{type}"
+    const val CLINICAL_RESULT = "clinical_result/{score}/{severity}/{type}/{assessmentId}"
 }
 
 @Composable
@@ -266,17 +266,20 @@ fun UnifiedNavGraph(
             arguments = listOf(
                 navArgument("score") { type = NavType.IntType },
                 navArgument("severity") { type = NavType.StringType },
-                navArgument("type") { type = NavType.StringType }
+                navArgument("type") { type = NavType.StringType },
+                navArgument("assessmentId") { type = NavType.StringType }
             )
         ) { backStackEntry ->
             val score = backStackEntry.arguments?.getInt("score") ?: 0
             val severity = backStackEntry.arguments?.getString("severity") ?: ""
             val type = backStackEntry.arguments?.getString("type") ?: ""
+            val assessmentId = backStackEntry.arguments?.getString("assessmentId") ?: ""
             ClinicalResultScreen(
                 navController = navController,
                 score = score,
                 severity = severity,
-                type = type
+                type = type,
+                assessmentId = assessmentId
             )
         }
     }
