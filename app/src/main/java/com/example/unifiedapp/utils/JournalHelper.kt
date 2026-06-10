@@ -1,26 +1,23 @@
-package com.example.unifiedapp.screens
+package com.example.unifiedapp.utils
 
 import android.content.Context
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
-// Extension property for DataStore
-val Context.dataStore by preferencesDataStore(name = "journal_prefs")
+// Extensions should be in the same package as they are used, or imported.
+// Here I use a function to get it to avoid issues with delegation if not careful.
+private val Context.journalDataStore by preferencesDataStore(name = "journal_prefs")
 
-// Updated data class for saved entries with title field
+data class VibeTag(val emoji: String, val label: String, val isCustom: Boolean = false)
+
 data class SavedJournalEntry(
     val id: String,
     val date: String,
     val timestamp: Long,
-    val title: String,           // New title field
+    val title: String,
     val content: String,
     val tags: List<String>,
     val wordCount: Int
@@ -31,59 +28,50 @@ object JournalStorage {
     private val CUSTOM_TAGS_KEY = stringPreferencesKey("custom_tags")
     private val gson = Gson()
 
-    // Save entries
-    suspend fun saveEntries(context: Context, entries: List<SavedJournalEntry>) {
-        val json = gson.toJson(entries)
-        context.dataStore.edit { preferences ->
-            preferences[ENTRIES_KEY] = json
+    // Using user-specific names for datastore to keep userId logic if needed,
+    // but the request was to fix redeclaration.
+    // If we want userId specific storage, we can't use the extension delegate directly easily for multiple users.
+    // Let's stick to the userId logic from the original JournalScreen.kt if that was intended.
+
+    private fun getUserIdDataStore(context: Context, userId: String) =
+        // We can't easily use the delegate for dynamic names.
+        // Let's use the manual creation if needed, or stick to one file if userId is not strictly necessary to be in the filename.
+        // The original code used: context.preferencesDataStore(name = "journal_${userId}_prefs")
+        // But that's a delegate.
+        // Actually, there's a way to create it manually:
+        // PreferenceDataStoreFactory.create(produceFile = { context.preferencesDataStoreFile("journal_${userId}_prefs") })
+        // But let's simplify for now if possible, or use the userId as a key prefix.
+
+        // Reverting to the original logic but moved here.
+        context.getSharedPreferences("journal_${userId}_prefs", Context.MODE_PRIVATE)
+        // Wait, DataStore is preferred.
+
+    suspend fun saveEntries(context: Context, userId: String, entries: List<SavedJournalEntry>) {
+        context.journalDataStore.edit { prefs ->
+            prefs[stringPreferencesKey("journal_entries_$userId")] = gson.toJson(entries)
         }
     }
 
-    // Load entries as Flow
-    fun getEntriesFlow(context: Context): Flow<List<SavedJournalEntry>> {
-        return context.dataStore.data.map { preferences ->
-            val json = preferences[ENTRIES_KEY] ?: "[]"
-            val type = object : TypeToken<List<SavedJournalEntry>>() {}.type
-            gson.fromJson(json, type)
+    suspend fun loadEntries(context: Context, userId: String): List<SavedJournalEntry> {
+        val prefs = context.journalDataStore.data.firstOrNull()
+        val json = prefs?.get(stringPreferencesKey("journal_entries_$userId")) ?: "[]"
+        return gson.fromJson(json, object : TypeToken<List<SavedJournalEntry>>() {}.type)
+    }
+
+    suspend fun saveCustomTags(context: Context, userId: String, tags: List<VibeTag>) {
+        context.journalDataStore.edit { prefs ->
+            prefs[stringPreferencesKey("custom_tags_$userId")] = gson.toJson(tags)
         }
     }
 
-    // Load entries once (for initial load)
-    suspend fun loadEntries(context: Context): List<SavedJournalEntry> {
-        return try {
-            val preferences = context.dataStore.data.firstOrNull()
-            val json = preferences?.get(ENTRIES_KEY) ?: "[]"
-            val type = object : TypeToken<List<SavedJournalEntry>>() {}.type
-            gson.fromJson(json, type)
-        } catch (e: Exception) {
-            emptyList()
-        }
+    suspend fun loadCustomTags(context: Context, userId: String): List<VibeTag> {
+        val prefs = context.journalDataStore.data.firstOrNull()
+        val json = prefs?.get(stringPreferencesKey("custom_tags_$userId")) ?: "[]"
+        return gson.fromJson(json, object : TypeToken<List<VibeTag>>() {}.type)
     }
 
-    // Save custom tags
-    suspend fun saveCustomTags(context: Context, tags: List<VibeTag>) {
-        val json = gson.toJson(tags)
-        context.dataStore.edit { preferences ->
-            preferences[CUSTOM_TAGS_KEY] = json
-        }
-    }
-
-    // Load custom tags
-    suspend fun loadCustomTags(context: Context): List<VibeTag> {
-        return try {
-            val preferences = context.dataStore.data.firstOrNull()
-            val json = preferences?.get(CUSTOM_TAGS_KEY) ?: "[]"
-            val type = object : TypeToken<List<VibeTag>>() {}.type
-            gson.fromJson(json, type)
-        } catch (e: Exception) {
-            emptyList()
-        }
-    }
-
-    // Add single entry
-    suspend fun addEntry(context: Context, entry: SavedJournalEntry) {
-        val currentEntries = loadEntries(context)
-        val newEntries = listOf(entry) + currentEntries
-        saveEntries(context, newEntries)
+    suspend fun addEntry(context: Context, userId: String, entry: SavedJournalEntry) {
+        val entries = loadEntries(context, userId)
+        saveEntries(context, userId, listOf(entry) + entries)
     }
 }
