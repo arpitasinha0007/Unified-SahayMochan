@@ -1,4 +1,4 @@
-package com.example.unifiedapp.ui.auth
+package com.example.unifiedapp.navigation
 
 import android.app.Application
 import android.content.Context
@@ -336,8 +336,7 @@ fun UnifiedAuthScreen(
                                         val result = performLogin(
                                             context = context,
                                             registrationId = loginRegId,
-                                            password = loginPassword,
-                                            expectedRole = "patient"
+                                            password = loginPassword
                                         )
                                         isLoading = false
                                         if (result.first != null) {
@@ -380,7 +379,7 @@ fun UnifiedAuthScreen(
                         // Clinician Registration Link & Hint Text
                         if (selectedRole == "clinician") {
                             Spacer(modifier = Modifier.height(12.dp))
-
+                            
                             // ✅ Added hint text
                             Text(
                                 text = "Clinician login requires the Registration ID sent to your registered email. Patient accounts cannot log in here.",
@@ -391,7 +390,7 @@ fun UnifiedAuthScreen(
                                     .fillMaxWidth()
                                     .padding(bottom = 8.dp)
                             )
-
+                            
                             Row(
                                 horizontalArrangement = Arrangement.Center,
                                 modifier = Modifier.fillMaxWidth()
@@ -629,8 +628,7 @@ fun UnifiedAuthScreen(
                                         val loginResult = performLogin(
                                             context = context,
                                             registrationId = signupRegId,
-                                            password = signupPassword,
-                                            expectedRole = "patient"
+                                            password = signupPassword
                                         )
                                         if (loginResult.first != null) {
                                             onLoginSuccess(loginResult.first!!)
@@ -732,8 +730,7 @@ fun UnifiedAuthScreen(
 suspend fun performLogin(
     context: Context,
     registrationId: String,
-    password: String,
-    expectedRole: String = "patient"
+    password: String
 ): Pair<UserProfile?, String?> {
     return withContext(Dispatchers.IO) {
         try {
@@ -764,24 +761,6 @@ suspend fun performLogin(
 
             if (responseCode == 200) {
                 val json = JSONObject(response)
-                val trialsObj = json.optJSONObject("trials")
-
-                // Role validation – same as before
-                if (expectedRole == "patient") {
-                    val isPatient = trialsObj != null &&
-                            trialsObj.has("depression") &&
-                            trialsObj.has("anxiety")
-                    if (!isPatient) {
-                        return@withContext Pair(null, "This account is not a patient account. Please use the Clinician tab.")
-                    }
-                } else if (expectedRole == "clinician") {
-                    val isClinician = trialsObj == null ||
-                            (!trialsObj.has("depression") && !trialsObj.has("anxiety"))
-                    if (!isClinician) {
-                        return@withContext Pair(null, "This account is not a clinician account. Please use the Patient tab.")
-                    }
-                }
-
                 val name = json.getString("name")
                 val email = json.getString("email")
                 val age = json.getInt("age")
@@ -802,20 +781,14 @@ suspend fun performLogin(
                 )
                 Pair(profile, null)
             } else {
-                // ✅ Parse backend error message from response (if any)
-                val errorMsg = try {
-                    val errorJson = JSONObject(response)
-                    errorJson.optString("detail", errorJson.optString("message", "Login failed"))
-                } catch (e: Exception) {
-                    "Login failed. Please check your credentials."
-                }
-                Pair(null, errorMsg)
+                Pair(null, "Invalid Registration ID or Password")
             }
         } catch (e: Exception) {
             Pair(null, "Connection failed: ${e.message}")
         }
     }
 }
+
 suspend fun performSignup(
     registrationId: String,
     password: String,
