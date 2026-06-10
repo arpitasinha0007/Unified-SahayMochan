@@ -1,6 +1,7 @@
 package com.example.unifiedapp
 
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +15,9 @@ import com.example.unifiedapp.theme.UnifiedAppTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        // 🔒 Prevent screenshots and screen recording
+        window.setFlags(WindowManager.LayoutParams.FLAG_SECURE, WindowManager.LayoutParams.FLAG_SECURE)
+
         super.onCreate(savedInstanceState)
         setContent {
             // Force light theme – ignore system dark mode and dynamic colors
@@ -28,7 +32,7 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     UnifiedNavGraph(
                         navController = navController,
-                        startDestination = Screen.AUTH   // ✅ Changed from Screen.LAUNCHER to Screen.AUTH
+                        startDestination = Screen.AUTH
                     )
                 }
             }
