@@ -38,11 +38,11 @@ fun ClinicalResultScreen(
     @Suppress("UNUSED_PARAMETER") severity: String,
     type: String,
     assessmentId: String,
-    registrationId: String   // ✅ new parameter
+    registrationId: String
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val authViewModel: AuthViewModel = viewModel()   // ✅ to fetch self‑assessment scores
+    val authViewModel: AuthViewModel = viewModel()
     val maxScore = if (type == "ham_a") 56 else 52
     val color = if (type == "ham_a") Color(0xFF9D8DF1) else Color(0xFF10B981)
 
@@ -72,17 +72,13 @@ fun ClinicalResultScreen(
         scope.launch {
             isSaving = true
             try {
-                // Convert type to backend expected values: "ham_a" -> "ham-a", "hdrs" -> "ham-d"
                 val apiType = when (type) {
                     "ham_a" -> "ham-a"
                     "hdrs" -> "ham-d"
                     else -> type
                 }
                 Log.d("ClinicalResult", "API type: $apiType, assessmentId: $assessmentId, severity: $selectedSeverity")
-
-                // Call the new API with query parameters
                 val response = ApiClient.authApi.updateSeverityDirect(apiType, assessmentId, selectedSeverity)
-
                 if (response.isSuccessful) {
                     saveSuccess = true
                     Toast.makeText(context, "Severity saved: $selectedSeverity", Toast.LENGTH_SHORT).show()
@@ -178,7 +174,6 @@ fun ClinicalResultScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Stable dropdown
                     Box {
                         OutlinedButton(
                             onClick = { expanded = true },
@@ -226,8 +221,10 @@ fun ClinicalResultScreen(
                 }
             }
 
-            // ✅ New card for patient's latest GAD‑7 and PHQ‑9 scores
-            if (!isLoadingSelfScores && (gad7Score != null || phq9Score != null)) {
+            // Patient's latest self‑assessment scores – always show, with dash for 0 or null
+            if (!isLoadingSelfScores) {
+                val gad = gad7Score
+                val phq = phq9Score
                 Spacer(modifier = Modifier.height(16.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -247,27 +244,25 @@ fun ClinicalResultScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(24.dp)
                         ) {
-                            if (gad7Score != null) {
-                                Column {
-                                    Text("GAD‑7", fontSize = 12.sp, color = Color(0xFF6B7280))
-                                    Text(
-                                        text = "$gad7Score / 21",
-                                        fontSize = 20.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFF59E0B)
-                                    )
-                                }
+                            // GAD‑7
+                            Column {
+                                Text("GAD‑7", fontSize = 12.sp, color = Color(0xFF6B7280))
+                                Text(
+                                    text = if (gad != null && gad > 0) "$gad / 21" else "--",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (gad != null && gad > 0) Color(0xFFF59E0B) else Color(0xFF9CA3AF)
+                                )
                             }
-                            if (phq9Score != null) {
-                                Column {
-                                    Text("PHQ‑9", fontSize = 12.sp, color = Color(0xFF6B7280))
-                                    Text(
-                                        text = "$phq9Score / 27",
-                                        fontSize = 20.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFEF4444)
-                                    )
-                                }
+                            // PHQ‑9
+                            Column {
+                                Text("PHQ‑9", fontSize = 12.sp, color = Color(0xFF6B7280))
+                                Text(
+                                    text = if (phq != null && phq > 0) "$phq / 27" else "--",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (phq != null && phq > 0) Color(0xFFEF4444) else Color(0xFF9CA3AF)
+                                )
                             }
                         }
                     }

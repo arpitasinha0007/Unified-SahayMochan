@@ -380,6 +380,19 @@ fun UnifiedAuthScreen(
                         // Clinician Registration Link (hint text removed)
                         if (selectedRole == "clinician") {
                             Spacer(modifier = Modifier.height(12.dp))
+
+                            // Spam reminder only
+                            Text(
+                                text = "📧 The registration id will be sent through mail. If you don't see the email in your inbox, please check your Spam/Junk folder.",
+                                fontSize = 12.sp,
+                                color = AuthTextSecondary,
+                                fontWeight = FontWeight.Medium,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 8.dp)
+                            )
+
                             Row(
                                 horizontalArrangement = Arrangement.Center,
                                 modifier = Modifier.fillMaxWidth()
@@ -399,8 +412,7 @@ fun UnifiedAuthScreen(
                                     }
                                 )
                             }
-                        }
-                    }
+                        }                    }
                 }
             } else {
                 // ========== PATIENT SIGNUP FORM ==========

@@ -17,7 +17,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import java.text.SimpleDateFormat
 import java.util.*
 
-// Extension property for DataStore
+// Extension property for DataStore (kept as original – not used in this class)
 val Context.dataStore by preferencesDataStore(name = "mood_tracker_prefs")
 
 // Mood Types - Store hex colors as strings, not Color objects
@@ -72,11 +72,11 @@ data class GraphDataPoint(
     val colorHex: String  // Store as hex string, not Color
 )
 
-// Main Helper Class
-class MoodTrackerHelper(private val context: Context) {
+// Main Helper Class – now USER‑SPECIFIC
+class MoodTrackerHelper(private val context: Context, private val userId: String) {
 
     companion object {
-        private const val PREFS_NAME = "mood_tracker_prefs"
+        private const val PREFS_NAME_PREFIX = "mood_tracker_"
         private const val ENTRIES_KEY = "mood_entries"
         private const val MAX_ENTRIES = 365 // Keep 1 year of data
 
@@ -90,7 +90,8 @@ class MoodTrackerHelper(private val context: Context) {
         }
     }
 
-    private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    // Use a SharedPreferences file that includes the userId
+    private val prefs = context.getSharedPreferences("${PREFS_NAME_PREFIX}${userId}", Context.MODE_PRIVATE)
     private val gson = Gson()
     private val dateFormatter = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     private val displayFormatter = SimpleDateFormat("MMM dd", Locale.getDefault())
@@ -141,6 +142,13 @@ class MoodTrackerHelper(private val context: Context) {
             _entries.value = updatedList
         }
 
+        saveEntries()
+    }
+
+    // ✅ NEW: Clear today's entry
+    fun clearTodayEntry() {
+        val today = dateFormatter.format(Date())
+        _entries.value = _entries.value.filterNot { it.date == today }
         saveEntries()
     }
 
@@ -206,7 +214,7 @@ class MoodTrackerHelper(private val context: Context) {
         val last30Days = getEntriesForDateRange(30)
         val distribution = mutableMapOf<MoodCategory, Int>()
 
-        MoodCategory.values().forEach { category ->
+        MoodCategory.entries.forEach { category ->
             distribution[category] = last30Days.count { it.mood.category == category }
         }
 
@@ -303,7 +311,7 @@ class MoodTrackerHelper(private val context: Context) {
     }
 }
 
-// ViewModel for Compose integration
+// ViewModel for Compose integration – unchanged (receives helper already scoped to user)
 class MoodTrackerViewModel(private val helper: MoodTrackerHelper) : ViewModel() {
 
     val entries = helper.entries
@@ -337,4 +345,11 @@ class MoodTrackerViewModel(private val helper: MoodTrackerHelper) : ViewModel() 
     }
 
     fun getTodayEntry(): MoodEntry? = helper.getTodayEntry()
+
+    // ✅ NEW: Clear today's entry from ViewModel
+    fun clearTodayEntry() {
+        viewModelScope.launch(Dispatchers.IO) {
+            helper.clearTodayEntry()
+        }
+    }
 }

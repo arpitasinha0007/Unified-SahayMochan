@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
@@ -21,11 +22,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -33,19 +35,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.Canvas
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.unifiedapp.navigation.Screen
-import com.example.unifiedapp.utils.MoodTrackerHelper
-import com.example.unifiedapp.utils.MoodTrackerViewModel
-import com.example.unifiedapp.utils.MoodType
-import com.example.unifiedapp.utils.MoodCategory
-import com.example.unifiedapp.utils.MoodEntry
-import com.example.unifiedapp.utils.GraphDataPoint
+import com.example.unifiedapp.utils.*
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.delay
-import androidx.compose.ui.graphics.lerp
+import java.util.Locale
 
 // Theme Colors
 val GlassWhiteMood = Color.White.copy(alpha = 0.4f)
@@ -55,7 +51,7 @@ val TextPrimaryMood = Color(0xFF1D2335)
 val TextSoftMood = Color(0xFF4B5563)
 val TextLightMood = Color(0xFF6B7280)
 
-// Gradient for mood tracker
+// Gradient for mood tracker (not used, kept for compatibility)
 val MoodGradientMood = Brush.linearGradient(
     colors = listOf(Color(0xFF34D399), Color(0xFF99F6E4))
 )
@@ -72,18 +68,10 @@ fun getHappinessColorMood(level: Int): Color {
     val fraction = (level - 1) / 9f
 
     return when {
-        fraction < 0.25f -> {
-            lerp(brightBlue, cyan, fraction / 0.25f)
-        }
-        fraction < 0.5f -> {
-            lerp(cyan, teal, (fraction - 0.25f) / 0.25f)
-        }
-        fraction < 0.75f -> {
-            lerp(teal, oceanGreen, (fraction - 0.5f) / 0.25f)
-        }
-        else -> {
-            lerp(oceanGreen, deepOceanGreen, (fraction - 0.75f) / 0.25f)
-        }
+        fraction < 0.25f -> lerp(brightBlue, cyan, fraction / 0.25f)
+        fraction < 0.5f -> lerp(cyan, teal, (fraction - 0.25f) / 0.25f)
+        fraction < 0.75f -> lerp(teal, oceanGreen, (fraction - 0.5f) / 0.25f)
+        else -> lerp(oceanGreen, deepOceanGreen, (fraction - 0.75f) / 0.25f)
     }
 }
 
@@ -95,12 +83,8 @@ fun getEnergyColorMood(level: Float): Color {
     val amber = Color(0xFFFFB300)
 
     return when {
-        level < 0.5f -> {
-            lerp(red, orange, level / 0.5f)
-        }
-        else -> {
-            lerp(orange, amber, (level - 0.5f) / 0.5f)
-        }
+        level < 0.5f -> lerp(red, orange, level / 0.5f)
+        else -> lerp(orange, amber, (level - 0.5f) / 0.5f)
     }
 }
 
@@ -120,8 +104,11 @@ fun MoodTrackerScreen(
     }
 
     val context = LocalContext.current
-    val helper = remember { MoodTrackerHelper(context) }
-    val viewModel = remember { MoodTrackerViewModel(helper) }
+    // ✅ Get logged‑in user ID
+    val session = UserSessionHelper.getUserData(context)
+    val userId = session.anonymousId.ifEmpty { session.registrationId }
+    val helper = remember(userId) { MoodTrackerHelper(context, userId) }
+    val viewModel = remember(helper) { MoodTrackerViewModel(helper) }
 
     val entries by viewModel.entries.collectAsState()
     val graphData by remember { derivedStateOf { viewModel.getLast30DaysGraphData() } }
@@ -130,8 +117,8 @@ fun MoodTrackerScreen(
 
     var selectedMood by remember { mutableStateOf<MoodType?>(null) }
     var note by remember { mutableStateOf("") }
-    var energyLevel by remember { mutableStateOf(0.5f) }
-    var happinessLevel by remember { mutableStateOf(5) }
+    var energyLevel by remember { mutableFloatStateOf(0.5f) }
+    var happinessLevel by remember { mutableIntStateOf(5) }
     var selectedReasons by remember { mutableStateOf<List<String>>(emptyList()) }
     var showSuccessMessage by remember { mutableStateOf(false) }
 
@@ -203,7 +190,8 @@ fun MoodTrackerScreen(
                             viewModel.saveMoodEntry(entry)
                             showSuccessMessage = true
                         }
-                    }
+                    },
+                    onClearToday = { viewModel.clearTodayEntry() }
                 )
 
                 if (entries.isNotEmpty()) {
@@ -298,10 +286,6 @@ fun GlassHeaderMood(onBack: () -> Unit) {
     }
 }
 
-// ============ THE REST OF THE COMPOSABLES REMAIN EXACTLY AS THEY WERE ============
-// (MoodInputCardMood, MoodChipMood, QuickStatsCardMood, HappinessGraphCardMood, etc.)
-// They are omitted here for brevity but must be kept identical to your original file.
-// Make sure to copy them from your current working version.
 @Composable
 fun MoodInputCardMood(
     streak: Int,
@@ -317,7 +301,8 @@ fun MoodInputCardMood(
     note: String,
     onNoteChange: (String) -> Unit,
     reasons: List<String>,
-    onSave: () -> Unit
+    onSave: () -> Unit,
+    onClearToday: () -> Unit
 ) {
     val cyanWhiteGradient = Brush.linearGradient(
         colors = listOf(
@@ -377,11 +362,12 @@ fun MoodInputCardMood(
                 }
 
                 if (!isTodayLogged) {
+                    // Show the full form
                     Text("Select your mood", fontSize = 14.sp, color = TextSoftMood)
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(MoodType.values().toList()) { mood ->
+                        items(MoodType.entries.toList()) { mood ->
                             MoodChipMood(
                                 mood = mood,
                                 isSelected = selectedMood == mood,
@@ -509,6 +495,7 @@ fun MoodInputCardMood(
                         Text("Log Today's Mood", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 } else {
+                    // Show the "already logged" message with a Change button
                     Surface(
                         color = Color(0xFFF0FDF4),
                         shape = RoundedCornerShape(12.dp),
@@ -517,11 +504,16 @@ fun MoodInputCardMood(
                         Row(
                             modifier = Modifier.padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF15803D))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Today's mood logged!", color = Color(0xFF15803D), fontWeight = FontWeight.Medium)
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.CheckCircle, null, tint = Color(0xFF15803D))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Today's mood logged!", color = Color(0xFF15803D), fontWeight = FontWeight.Medium)
+                            }
+                            TextButton(onClick = onClearToday) {
+                                Text("Change", color = Color(0xFF15803D))
+                            }
                         }
                     }
                 }
@@ -585,7 +577,7 @@ fun QuickStatsCardMood(
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("😊", fontSize = 24.sp)
                 Text(
-                    String.format("%.1f", averageHappiness),
+                    String.format(Locale.getDefault(), "%.1f", averageHappiness),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF34D399)
@@ -624,7 +616,11 @@ fun HappinessGraphCardMood(graphData: List<GraphDataPoint>) {
                     fontWeight = FontWeight.Bold,
                     color = TextPrimaryMood
                 )
-                Icon(Icons.Default.ShowChart, null, tint = Color(0xFF34D399))
+                Icon(
+                    Icons.AutoMirrored.Filled.ShowChart,
+                    contentDescription = null,
+                    tint = Color(0xFF34D399)
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -741,7 +737,7 @@ fun MoodDistributionCardMood(
                     Text("No data available", color = TextLightMood)
                 }
             } else {
-                MoodCategory.values().forEach { category ->
+                MoodCategory.entries.forEach { category ->
                     val count = categoryDistribution[category] ?: 0
                     val percentage = if (total > 0) (count * 100f / total) else 0f
 
@@ -839,7 +835,7 @@ fun RecentHistoryCardMood(entries: List<MoodEntry>) {
             entries.forEachIndexed { index, entry ->
                 HistoryItemMood(entry = entry)
                 if (index < entries.size - 1) {
-                    Divider(
+                    HorizontalDivider(
                         modifier = Modifier.padding(vertical = 8.dp),
                         color = TextLightMood.copy(alpha = 0.2f)
                     )
@@ -887,8 +883,8 @@ fun HistoryItemMood(entry: MoodEntry) {
             Text(
                 text = try {
                     val date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(entry.date)
-                    dateFormat.format(date)
-                } catch (e: Exception) {
+                    dateFormat.format(date ?: Date())
+                } catch (_: Exception) {
                     entry.date
                 },
                 fontWeight = FontWeight.Bold,

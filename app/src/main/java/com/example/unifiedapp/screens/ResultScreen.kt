@@ -1552,7 +1552,7 @@ fun DownloadReportButton(
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
-            Text("PDF will be saved to Downloads/unifiedapp/Reports/", fontSize = 11.sp, color = Color(0xFF9CA3AF), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            Text("PDF will be saved to the Downloads folder", fontSize = 11.sp, color = Color(0xFF9CA3AF), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
             if (downloadedFilePath != null && !isDownloading) {
                 Text(text = "Last saved: ${downloadedFilePath!!.substringAfterLast("/")}", fontSize = 10.sp, color = Color(0xFF6B7280), textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 4.dp))
             }

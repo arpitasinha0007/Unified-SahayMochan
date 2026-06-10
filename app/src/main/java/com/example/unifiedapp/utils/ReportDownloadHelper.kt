@@ -1,9 +1,13 @@
 package com.example.unifiedapp.utils
 
+import android.content.ContentValues
 import android.content.Context
 import android.graphics.*
+import android.os.Build
 import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
+import androidx.core.content.FileProvider
 import com.example.unifiedapp.R
 import com.example.unifiedapp.screens.AiPredictionData
 import com.example.unifiedapp.screens.SeverityData
@@ -26,31 +30,26 @@ object ReportDownloadHelper {
         phq9Score: Int,
         phq9Severity: SeverityData,
         aiData: AiPredictionData?,
-        assessmentType: String,  // ✅ "depression" or "anxiety"
+        assessmentType: String,
         onProgress: (Int) -> Unit = {}
     ): String? {
+        var document: android.graphics.pdf.PdfDocument? = null
         return try {
             NotificationHelper.showDownloadStarted(context)
             onProgress(10)
 
-            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-            val appFolder = File(downloadsDir, "unifiedapp")
-            val reportsFolder = File(appFolder, "Reports")
-            if (!reportsFolder.exists()) reportsFolder.mkdirs()
+            // Create a temporary file to build the PDF
+            val tempFile = File(context.cacheDir, "temp_${System.currentTimeMillis()}.pdf")
             onProgress(20)
 
-            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-            val fileName = "${anonymousId}_${assessmentType}_${timestamp}.pdf"
-            val pdfFile = File(reportsFolder, fileName)
-            onProgress(30)
-
-            val document = android.graphics.pdf.PdfDocument()
+            document = android.graphics.pdf.PdfDocument()
             val pageInfo = android.graphics.pdf.PdfDocument.PageInfo.Builder(595, 842, 1).create()
             val page = document.startPage(pageInfo)
             val canvas = page.canvas
-            onProgress(40)
+            onProgress(30)
 
-            // Determine report title based on assessment type
+            // ========== ALL YOUR EXISTING DRAWING CODE (unchanged) ==========
+            // Determine report title
             val reportTitle = if (assessmentType.equals("depression", ignoreCase = true)) {
                 "MOCHAN DEPRESSION ASSESSMENT REPORT"
             } else {
@@ -64,9 +63,8 @@ object ReportDownloadHelper {
                 null
             }
 
-            // ============ HEADER SECTION ============
+            // Header
             val headerYPosition = 50f
-
             logoBitmap?.let {
                 val scaledLogo = Bitmap.createScaledBitmap(it, 70, 70, false)
                 val titlePaint = Paint().apply {
@@ -94,7 +92,6 @@ object ReportDownloadHelper {
             }
 
             var yPosition = headerYPosition + 40f
-            onProgress(50)
 
             val linePaint = Paint().apply {
                 color = Color.parseColor("#E5E7EB")
@@ -108,9 +105,8 @@ object ReportDownloadHelper {
                 Paint().apply { color = Color.parseColor("#4B5563"); textSize = 10f }
             )
             yPosition += 30f
-            onProgress(60)
 
-            // Patient Info Block
+            // Patient Info
             val infoPaint = Paint().apply {
                 color = Color.parseColor("#374151")
                 textSize = 11f
@@ -138,7 +134,7 @@ object ReportDownloadHelper {
 
             yPosition += 80f
 
-            // Assessment Results Section
+            // Assessment Results
             val headerPaint = Paint().apply {
                 color = Color.parseColor("#4F46E5")
                 textSize = 16f
@@ -179,7 +175,6 @@ object ReportDownloadHelper {
 
             yPosition += 80f
 
-            // AI Results (simplified – only severity label)
             if (aiData != null && aiData.label.isNotBlank()) {
                 val aiBoxPaint = Paint().apply {
                     color = Color.parseColor("#F5F3FF")
@@ -188,16 +183,11 @@ object ReportDownloadHelper {
                 canvas.drawRect(50f, yPosition - 10f, 545f, yPosition + 70f, aiBoxPaint)
 
                 canvas.drawText("🤖 AI FACIAL ANALYSIS", 70f, yPosition + 5f, sectionPaint)
-                // Show only the severity level (Mild/Moderate/Severe)
                 canvas.drawText("Prediction: ${aiData.label}", 70f, yPosition + 30f, boldTextPaint)
-                // Removed "Frames Analyzed" line
-
                 yPosition += 80f
             }
 
-            onProgress(70)
-
-            // Recommendations Section
+            // Recommendations
             canvas.drawText("RECOMMENDATIONS", 50f, yPosition, headerPaint)
             yPosition += 30f
 
@@ -218,7 +208,6 @@ object ReportDownloadHelper {
             }
 
             yPosition = recYPos + 20f
-            onProgress(80)
 
             // Crisis Resources
             canvas.drawText("CRISIS RESOURCES", 50f, yPosition, headerPaint)
@@ -236,9 +225,7 @@ object ReportDownloadHelper {
             canvas.drawText("🏥 Visit your nearest hospital emergency room", 70f, yPosition + 65f, textPaint)
 
             yPosition += 100f
-            onProgress(85)
 
-            // Footer
             val footerPaint = Paint().apply {
                 color = Color.parseColor("#9CA3AF")
                 textSize = 8f
@@ -248,22 +235,76 @@ object ReportDownloadHelper {
             canvas.drawText("Always consult with qualified mental health professionals.", 297.5f, yPosition + 12f, footerPaint)
 
             document.finishPage(page)
+            onProgress(80)
+
+            // Write to temp file
+            FileOutputStream(tempFile).use { fos ->
+                document.writeTo(fos)
+            }
+            document.close()
+            document = null
+
             onProgress(90)
 
-            val fileOutputStream = FileOutputStream(pdfFile)
-            document.writeTo(fileOutputStream)
-            document.close()
-            fileOutputStream.close()
+            // Save to Downloads folder (visible to user)
+            val finalPath = savePdfToDownloads(context, tempFile, anonymousId, assessmentType)
+
+            // Delete temp file
+            tempFile.delete()
 
             onProgress(100)
-            Log.d(TAG, "PDF Report saved: ${pdfFile.absolutePath}")
-            NotificationHelper.showDownloadSuccess(context, pdfFile.absolutePath)
-            pdfFile.absolutePath
+            Log.d(TAG, "PDF saved to: $finalPath")
+            NotificationHelper.showDownloadSuccess(context, finalPath)
+            finalPath
 
         } catch (e: Exception) {
             Log.e(TAG, "Error generating PDF report: ${e.message}", e)
             NotificationHelper.showDownloadError(context, e.message ?: "Unknown error occurred")
             null
+        } finally {
+            document?.close()
+        }
+    }
+
+    private fun savePdfToDownloads(context: Context, sourceFile: File, anonymousId: String, assessmentType: String): String {
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+        val fileName = "${anonymousId}_${assessmentType}_${timestamp}.pdf"
+
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Android 10+ – use MediaStore
+            val resolver = context.contentResolver
+            val contentValues = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+            }
+            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+            uri?.let {
+                resolver.openOutputStream(it)?.use { outputStream ->
+                    sourceFile.inputStream().use { inputStream ->
+                        inputStream.copyTo(outputStream)
+                    }
+                }
+                // Also copy to app cache for FileProvider to open
+                val cacheFile = File(context.cacheDir, fileName)
+                sourceFile.inputStream().use { input ->
+                    cacheFile.outputStream().use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                cacheFile.absolutePath
+            } ?: sourceFile.absolutePath
+        } else {
+            // Android 9 and below – write directly to external storage
+            val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+            if (!downloadsDir.exists()) downloadsDir.mkdirs()
+            val destFile = File(downloadsDir, fileName)
+            sourceFile.inputStream().use { input ->
+                destFile.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+            destFile.absolutePath
         }
     }
 }

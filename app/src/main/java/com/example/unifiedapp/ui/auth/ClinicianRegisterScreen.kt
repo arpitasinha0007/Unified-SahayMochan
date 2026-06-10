@@ -138,7 +138,7 @@ fun ClinicianRegisterScreen(
                     // Email (no asterisk)
                     OutlinedTextField(
                         value = email, onValueChange = { email = it },
-                        label = { Text("Email Address") },
+                        label = { Text("Email Address *") },
                         leadingIcon = { Icon(Icons.Default.Email, null, tint = primaryColor) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -238,7 +238,7 @@ fun ClinicianRegisterScreen(
                     // Confirm Password (no asterisk)
                     OutlinedTextField(
                         value = confirmPassword, onValueChange = { confirmPassword = it },
-                        label = { Text("Confirm Password") },
+                        label = { Text("Confirm Password *") },
                         leadingIcon = { Icon(Icons.Default.Lock, null, tint = primaryColor) },
                         trailingIcon = {
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
