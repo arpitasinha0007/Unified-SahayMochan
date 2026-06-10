@@ -22,6 +22,10 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.OkHttpClient
 
 // ── Shared sealed states (unchanged) ──────────────────────────────
 sealed class AssessmentListState {
@@ -543,6 +547,34 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // ✅ NEW: Send clinician ID email using Apps Script web app
+    suspend fun sendClinicianIdEmail(email: String, name: String, clinicianId: String): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                val scriptUrl = "https://script.google.com/macros/s/AKfycby2SHPwP7s1MAZlvBCrjDxoTsOGN52WaYMt_gZpaV5OEpFmZIDhY2Xr6Qc7hUtBOpc8/exec"
+                val client = OkHttpClient()
+                val json = JSONObject().apply {
+                    put("action", "sendClinicianId")
+                    put("email", email)
+                    put("name", name)
+                    put("clinicianId", clinicianId)
+                }
+                val body = json.toString().toRequestBody("application/json".toMediaType())
+                val request = okhttp3.Request.Builder()
+                    .url(scriptUrl)
+                    .post(body)
+                    .build()
+                val response = client.newCall(request).execute()
+                val isSuccess = response.isSuccessful
+                response.close()
+                Log.d("ClinicianEmail", "Email send result: $isSuccess")
+                isSuccess
+            } catch (e: Exception) {
+                Log.e("ClinicianEmail", "Failed to send email: ${e.message}", e)
+                false
+            }
+        }
+    }
 
     private val _clinicianRegisterState = MutableStateFlow<RegisterState>(RegisterState.Idle)
     val clinicianRegisterState: StateFlow<RegisterState> = _clinicianRegisterState.asStateFlow()
@@ -560,8 +592,12 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
                 if (response.isSuccessful && response.body() != null) {
                     val body = response.body()!!
                     if (body.success) {
-                        // ✅ Store the result for showing registration ID to the clinician
+                        // Store the result for showing registration ID to the clinician
                         _clinicianRegResult.value = ClinicianRegResult(body.registration_id, body.name, body.user_id)
+                        // ✅ Send email with registration ID (fire and forget)
+                        launch {
+                            sendClinicianIdEmail(email, name, body.registration_id)
+                        }
                         _clinicianRegisterState.value = RegisterState.Success("Clinician registered! Please login.")
                     } else {
                         _clinicianRegisterState.value = RegisterState.Error(body.message ?: "Registration failed")
