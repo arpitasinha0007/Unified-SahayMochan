@@ -262,7 +262,7 @@ fun UnifiedHomeContent(
                 Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
                     Text(
-                        "Unified Mental Health",
+                        "Mental Health",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = Color(0xFF1F2937)

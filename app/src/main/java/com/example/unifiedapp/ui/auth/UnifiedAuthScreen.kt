@@ -183,7 +183,7 @@ fun UnifiedAuthScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Sahay Mochan",
+                text = "Mental Health",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 color = AuthTextPrimary
