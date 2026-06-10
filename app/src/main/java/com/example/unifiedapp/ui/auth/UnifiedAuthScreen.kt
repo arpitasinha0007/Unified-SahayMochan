@@ -381,7 +381,6 @@ fun UnifiedAuthScreen(
                         if (selectedRole == "clinician") {
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            // ✅ Added hint text
                             Text(
                                 text = "Clinician login requires the Registration ID sent to your registered email. Patient accounts cannot log in here.",
                                 fontSize = 12.sp,
@@ -701,23 +700,24 @@ fun UnifiedAuthScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            if (selectedRole == "patient") {
+            // ✅ FIX: Only show this outer toggle link when in login mode (prevents duplicate in signup)
+            if (isLoginMode && selectedRole == "patient") {
                 Row(
                     horizontalArrangement = Arrangement.Center,
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = if (isLoginMode) "Don't have an account? " else "Already have an account? ",
+                        text = "Don't have an account? ",
                         color = AuthTextSecondary,
                         fontSize = 14.sp
                     )
                     Text(
-                        text = if (isLoginMode) "Sign Up" else "Login",
+                        text = "Sign Up",
                         color = AuthLavenderPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.clickable {
-                            isLoginMode = !isLoginMode
+                            isLoginMode = false
                             errorMessage = null
                         }
                     )
@@ -816,6 +816,7 @@ suspend fun performLogin(
         }
     }
 }
+
 suspend fun performSignup(
     registrationId: String,
     password: String,
