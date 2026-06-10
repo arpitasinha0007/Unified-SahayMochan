@@ -1,6 +1,5 @@
 package com.example.unifiedapp.ui.clinical
 
-import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -124,10 +123,10 @@ fun ClinicianDashboardScreen(
                         PatientCard(
                             patient = patient,
                             onStartHamA = {
-                                navController.navigate("ham_a_assessment/${patient.patientId}/${patient.name}")
+                                navController.navigate("ham_a_assessment/${patient.patientId}/${patient.name}/${patient.registrationId}")
                             },
                             onStartHdrs = {
-                                navController.navigate("hdrs_assessment/${patient.patientId}/${patient.name}")
+                                navController.navigate("hdrs_assessment/${patient.patientId}/${patient.name}/${patient.registrationId}")
                             }
                         )
                     }

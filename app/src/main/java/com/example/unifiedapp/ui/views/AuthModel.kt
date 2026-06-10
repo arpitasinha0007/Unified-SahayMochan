@@ -111,6 +111,7 @@ data class Assessment_Data(
     @SerializedName("id") val id: Int,
     @SerializedName("assessment_score") val anxietyPrediction: Float?,
     @SerializedName("gad7_score") val gad7Score: Float?,
+    @SerializedName("phq_score") val phqScore: Float?,   // ✅ ADDED – missing field
     @SerializedName("questionnaire_score") val questionnaireScore: Float?,
     @SerializedName("created_at") val createdAt: String,
     @SerializedName("video_count") val videoCount: Int

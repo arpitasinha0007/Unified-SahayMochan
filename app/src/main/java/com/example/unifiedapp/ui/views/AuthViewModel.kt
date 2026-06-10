@@ -521,6 +521,29 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    suspend fun getLatestSelfAssessmentScores(registrationId: String): Pair<Int?, Int?> {
+        return try {
+            val response = ApiClient.authApi.getStudentAssessments(registrationId)
+            if (response.isSuccessful && response.body() != null) {
+                val assessments = response.body()!!.assessments
+                // Latest GAD-7 score (from any record where gad7Score > 0)
+                val latestGad = assessments
+                    .filter { it.gad7Score != null && it.gad7Score > 0 }
+                    .maxByOrNull { it.createdAt }
+                // Latest PHQ-9 score (from any record where phqScore > 0)
+                val latestPhq = assessments
+                    .filter { it.phqScore != null && it.phqScore > 0 }
+                    .maxByOrNull { it.createdAt }
+                Pair(latestGad?.gad7Score?.toInt(), latestPhq?.phqScore?.toInt())
+            } else {
+                Pair(null, null)
+            }
+        } catch (e: Exception) {
+            Pair(null, null)
+        }
+    }
+
+
     private val _clinicianRegisterState = MutableStateFlow<RegisterState>(RegisterState.Idle)
     val clinicianRegisterState: StateFlow<RegisterState> = _clinicianRegisterState.asStateFlow()
 

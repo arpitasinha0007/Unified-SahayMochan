@@ -58,9 +58,9 @@ object Screen {
     // Clinician routes
     const val CLINICIAN_DASHBOARD = "clinician_dashboard"
     const val CLINICIAN_REGISTER = "clinician_register"
-    const val HAM_A_ASSESSMENT = "ham_a_assessment/{patientId}/{patientName}"
-    const val HDRS_ASSESSMENT = "hdrs_assessment/{patientId}/{patientName}"
-    const val CLINICAL_RESULT = "clinical_result/{score}/{severity}/{type}/{assessmentId}"
+    const val HAM_A_ASSESSMENT = "ham_a_assessment/{patientId}/{patientName}/{registrationId}"
+    const val HDRS_ASSESSMENT = "hdrs_assessment/{patientId}/{patientName}/{registrationId}"
+    const val CLINICAL_RESULT = "clinical_result/{score}/{severity}/{type}/{assessmentId}/{registrationId}"
 }
 
 @Composable
@@ -233,15 +233,18 @@ fun UnifiedNavGraph(
             route = Screen.HAM_A_ASSESSMENT,
             arguments = listOf(
                 navArgument("patientId") { type = NavType.StringType },
-                navArgument("patientName") { type = NavType.StringType }
+                navArgument("patientName") { type = NavType.StringType },
+                navArgument("registrationId") { type = NavType.StringType }
             )
         ) { backStackEntry ->
             val patientId = backStackEntry.arguments?.getString("patientId") ?: ""
             val patientName = backStackEntry.arguments?.getString("patientName") ?: ""
+            val registrationId = backStackEntry.arguments?.getString("registrationId") ?: ""
             HamAQuestionnaireScreen(
                 navController = navController,
                 patientId = patientId,
-                patientName = patientName
+                patientName = patientName,
+                registrationId = registrationId
             )
         }
 
@@ -249,15 +252,18 @@ fun UnifiedNavGraph(
             route = Screen.HDRS_ASSESSMENT,
             arguments = listOf(
                 navArgument("patientId") { type = NavType.StringType },
-                navArgument("patientName") { type = NavType.StringType }
+                navArgument("patientName") { type = NavType.StringType },
+                navArgument("registrationId") { type = NavType.StringType }
             )
         ) { backStackEntry ->
             val patientId = backStackEntry.arguments?.getString("patientId") ?: ""
             val patientName = backStackEntry.arguments?.getString("patientName") ?: ""
+            val registrationId = backStackEntry.arguments?.getString("registrationId") ?: ""
             HdrSQuestionnaireScreen(
                 navController = navController,
                 patientId = patientId,
-                patientName = patientName
+                patientName = patientName,
+                registrationId = registrationId
             )
         }
 
@@ -267,19 +273,22 @@ fun UnifiedNavGraph(
                 navArgument("score") { type = NavType.IntType },
                 navArgument("severity") { type = NavType.StringType },
                 navArgument("type") { type = NavType.StringType },
-                navArgument("assessmentId") { type = NavType.StringType }
+                navArgument("assessmentId") { type = NavType.StringType },
+                navArgument("registrationId") { type = NavType.StringType }
             )
         ) { backStackEntry ->
             val score = backStackEntry.arguments?.getInt("score") ?: 0
             val severity = backStackEntry.arguments?.getString("severity") ?: ""
             val type = backStackEntry.arguments?.getString("type") ?: ""
             val assessmentId = backStackEntry.arguments?.getString("assessmentId") ?: ""
+            val registrationId = backStackEntry.arguments?.getString("registrationId") ?: ""
             ClinicalResultScreen(
                 navController = navController,
                 score = score,
                 severity = severity,
                 type = type,
-                assessmentId = assessmentId
+                assessmentId = assessmentId,
+                registrationId = registrationId
             )
         }
     }

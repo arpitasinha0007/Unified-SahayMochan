@@ -49,6 +49,7 @@ fun HamAQuestionnaireScreen(
     navController: NavController,
     patientId: String,
     patientName: String,
+    registrationId: String,   // ✅ new parameter
     authViewModel: AuthViewModel = viewModel()
 ) {
     val context = LocalContext.current
@@ -63,7 +64,8 @@ fun HamAQuestionnaireScreen(
         when (val state = submissionState) {
             is AuthViewModel.ClinicalSubmissionState.Success -> {
                 Toast.makeText(context, state.message, Toast.LENGTH_SHORT).show()
-                navController.navigate("clinical_result/${state.score}/${state.severity}/ham_a/${state.assessmentId}") {
+                // ✅ Include registrationId at the end of the route
+                navController.navigate("clinical_result/${state.score}/${state.severity}/ham_a/${state.assessmentId}/${registrationId}") {
                     popUpTo("clinician_dashboard") { inclusive = false }
                 }
                 authViewModel.resetSubmissionState()

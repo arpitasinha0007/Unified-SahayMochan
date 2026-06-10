@@ -1,4 +1,5 @@
 package com.example.unifiedapp.ui.clinical
+
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -20,8 +21,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.unifiedapp.remote.ApiClient
+import com.example.unifiedapp.ui.views.AuthViewModel
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import okhttp3.MediaType.Companion.toMediaType
@@ -34,12 +37,30 @@ fun ClinicalResultScreen(
     score: Int,
     @Suppress("UNUSED_PARAMETER") severity: String,
     type: String,
-    assessmentId: String
+    assessmentId: String,
+    registrationId: String   // ✅ new parameter
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val authViewModel: AuthViewModel = viewModel()   // ✅ to fetch self‑assessment scores
     val maxScore = if (type == "ham_a") 56 else 52
     val color = if (type == "ham_a") Color(0xFF9D8DF1) else Color(0xFF10B981)
+
+    // State for self‑assessment scores
+    var gad7Score by remember { mutableStateOf<Int?>(null) }
+    var phq9Score by remember { mutableStateOf<Int?>(null) }
+    var isLoadingSelfScores by remember { mutableStateOf(false) }
+
+    // Fetch latest GAD-7 and PHQ-9 scores for this patient
+    LaunchedEffect(registrationId) {
+        if (registrationId.isNotBlank()) {
+            isLoadingSelfScores = true
+            val (gad, phq) = authViewModel.getLatestSelfAssessmentScores(registrationId)
+            gad7Score = gad
+            phq9Score = phq
+            isLoadingSelfScores = false
+        }
+    }
 
     val severityOptions = listOf("Minimal", "Mild", "Moderate", "Moderately Severe", "Severe")
     var selectedSeverity by remember { mutableStateOf("Moderate") }
@@ -77,6 +98,7 @@ fun ClinicalResultScreen(
             }
         }
     }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -156,8 +178,7 @@ fun ClinicalResultScreen(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    // Stable dropdown – no experimental API warnings
-// Stable dropdown – no experimental API warnings
+                    // Stable dropdown
                     Box {
                         OutlinedButton(
                             onClick = { expanded = true },
@@ -200,6 +221,54 @@ fun ClinicalResultScreen(
                             CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
                         } else {
                             Text(if (saveSuccess) "Saved" else "Save Severity", color = Color.White)
+                        }
+                    }
+                }
+            }
+
+            // ✅ New card for patient's latest GAD‑7 and PHQ‑9 scores
+            if (!isLoadingSelfScores && (gad7Score != null || phq9Score != null)) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF5F3FF)),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text(
+                            text = "Patient's Latest Self‑Assessment Scores",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFF4B5563)
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(24.dp)
+                        ) {
+                            if (gad7Score != null) {
+                                Column {
+                                    Text("GAD‑7", fontSize = 12.sp, color = Color(0xFF6B7280))
+                                    Text(
+                                        text = "$gad7Score / 21",
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFF59E0B)
+                                    )
+                                }
+                            }
+                            if (phq9Score != null) {
+                                Column {
+                                    Text("PHQ‑9", fontSize = 12.sp, color = Color(0xFF6B7280))
+                                    Text(
+                                        text = "$phq9Score / 27",
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFEF4444)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
