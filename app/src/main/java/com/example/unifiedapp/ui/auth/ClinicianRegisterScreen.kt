@@ -54,7 +54,6 @@ fun ClinicianRegisterScreen(
     var showRegDialog by remember { mutableStateOf(false) }
     var regIdToShow by remember { mutableStateOf("") }
 
-    // ✅ Fix: capture state in local variable for smart casting
     val currentRegisterState = registerState
     LaunchedEffect(currentRegisterState) {
         when (currentRegisterState) {
@@ -71,7 +70,6 @@ fun ClinicianRegisterScreen(
         }
     }
 
-    // Show dialog when registration result arrives
     LaunchedEffect(regResult) {
         if (regResult != null) {
             regIdToShow = regResult!!.registrationId
@@ -79,14 +77,14 @@ fun ClinicianRegisterScreen(
         }
     }
 
-    val primaryColor = Color(0xFF9D8DF1)
-    val accentColor = Color(0xFFD9D1FF)
+    // Darker primary color for button and focus
+    val primaryColor = Color(0xFF7C3AED)   // Dark purple
+    val accentColor = Color(0xFF9D8DF1)    // Lighter for borders
     val bgColor = Color(0xFFFAF8FF)
     val textPrimary = Color(0xFF1F2937)
     val textSecondary = Color(0xFF6B7280)
     val errorRed = Color(0xFFEF4444)
 
-    // ✅ Added imePadding and navigationBarsPadding to make the screen scrollable when keyboard opens
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -122,10 +120,10 @@ fun ClinicianRegisterScreen(
                         .fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Name
+                    // Name with *
                     OutlinedTextField(
                         value = name, onValueChange = { name = it },
-                        label = { Text("Full Name") },
+                        label = { Text("Full Name *") },
                         leadingIcon = { Icon(Icons.Default.Person, null, tint = primaryColor) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -137,7 +135,7 @@ fun ClinicianRegisterScreen(
                         supportingText = { if (name.isNotBlank() && name.length < 3) Text("Name must be at least 3 characters") }
                     )
 
-                    // Email
+                    // Email (no asterisk)
                     OutlinedTextField(
                         value = email, onValueChange = { email = it },
                         label = { Text("Email Address") },
@@ -156,10 +154,10 @@ fun ClinicianRegisterScreen(
                         }
                     )
 
-                    // Age
+                    // Age with *
                     OutlinedTextField(
                         value = ageText, onValueChange = { if (it.isEmpty() || it.all { c -> c.isDigit() }) ageText = it },
-                        label = { Text("Age") },
+                        label = { Text("Age *") },
                         leadingIcon = { Icon(Icons.Default.Cake, null, tint = primaryColor) },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
@@ -172,7 +170,7 @@ fun ClinicianRegisterScreen(
                         supportingText = { ageError?.let { Text(it) } }
                     )
 
-                    // Gender Dropdown
+                    // Gender Dropdown with *
                     var expanded by remember { mutableStateOf(false) }
                     val genders = listOf("male", "female", "other")
                     Column {
@@ -180,7 +178,7 @@ fun ClinicianRegisterScreen(
                             value = gender,
                             onValueChange = {},
                             readOnly = true,
-                            label = { Text("Gender") },
+                            label = { Text("Gender *") },
                             leadingIcon = { Icon(Icons.Default.Person, null, tint = primaryColor) },
                             trailingIcon = {
                                 IconButton(onClick = { expanded = true }) {
@@ -216,10 +214,10 @@ fun ClinicianRegisterScreen(
                         }
                     }
 
-                    // Password
+                    // Password with *
                     OutlinedTextField(
                         value = password, onValueChange = { password = it },
-                        label = { Text("Password") },
+                        label = { Text("Password *") },
                         leadingIcon = { Icon(Icons.Default.Lock, null, tint = primaryColor) },
                         trailingIcon = {
                             IconButton(onClick = { passwordVisible = !passwordVisible }) {
@@ -237,7 +235,7 @@ fun ClinicianRegisterScreen(
                         supportingText = { if (password.isNotBlank() && password.length < 6) Text("Password must be at least 6 characters") }
                     )
 
-                    // Confirm Password
+                    // Confirm Password (no asterisk)
                     OutlinedTextField(
                         value = confirmPassword, onValueChange = { confirmPassword = it },
                         label = { Text("Confirm Password") },
@@ -260,6 +258,7 @@ fun ClinicianRegisterScreen(
 
                     if (errorMessage != null) Text(errorMessage!!, color = errorRed, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
 
+                    // Register Button with darker color
                     Button(
                         onClick = {
                             if (name.length < 3) {
@@ -362,7 +361,6 @@ fun ClinicianRegisterScreen(
                                 fontSize = 12.sp,
                                 color = textSecondary
                             )
-                            // ✅ Make the ID text selectable (long-press to copy)
                             SelectionContainer {
                                 Text(
                                     text = regIdToShow,

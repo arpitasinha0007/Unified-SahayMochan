@@ -1,8 +1,6 @@
 package com.example.unifiedapp.ui.clinical
 
 import android.widget.Toast
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -42,14 +40,43 @@ fun ClinicianDashboardScreen(
     val patients by authViewModel.patients.collectAsState()
     var clinicianId by remember { mutableStateOf<String?>(null) }
 
+    var allPatients by remember { mutableStateOf<List<PatientItem>>(emptyList()) }
+    var filteredPatients by remember { mutableStateOf<List<PatientItem>>(emptyList()) }
+
+    // Define the filtering function before it's used
+    fun updateFilteredPatients() {
+        val trimmedQuery = searchQuery.trim()
+        if (trimmedQuery.isEmpty()) {
+            filteredPatients = allPatients
+            return
+        }
+        val queryWords = trimmedQuery.split(Regex("\\s+")).filter { it.isNotEmpty() }
+        filteredPatients = allPatients.filter { patient ->
+            val nameLower = patient.name.lowercase()
+            val idLower = patient.registrationId.lowercase()
+            queryWords.any { word ->
+                nameLower.contains(word.lowercase()) || idLower.contains(word.lowercase())
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         clinicianId = userPreferences.getClinicianUserId()
         if (clinicianId != null) {
-            authViewModel.fetchPatients(clinicianId!!)
+            authViewModel.fetchPatients(clinicianId!!, null)
         } else {
             Toast.makeText(context, "Session expired. Please login again.", Toast.LENGTH_LONG).show()
             navController.popBackStack()
         }
+    }
+
+    LaunchedEffect(patients) {
+        allPatients = patients
+        updateFilteredPatients()
+    }
+
+    LaunchedEffect(searchQuery) {
+        updateFilteredPatients()
     }
 
     Scaffold(
@@ -83,10 +110,7 @@ fun ClinicianDashboardScreen(
         ) {
             OutlinedTextField(
                 value = searchQuery,
-                onValueChange = {
-                    searchQuery = it
-                    clinicianId?.let { id -> authViewModel.fetchPatients(id, it) }
-                },
+                onValueChange = { searchQuery = it },
                 placeholder = { Text("Search by name or ID") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 modifier = Modifier.fillMaxWidth(),
@@ -108,18 +132,25 @@ fun ClinicianDashboardScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            if (patients.isEmpty()) {
+            if (filteredPatients.isEmpty() && allPatients.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No patients found", color = Color.Gray)
+                    Text("Loading patients...", color = Color.Gray)
+                }
+            } else if (filteredPatients.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No patients match your search", color = Color.Gray)
                 }
             } else {
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(patients) { patient ->
+                    items(filteredPatients, key = { it.patientId }) { patient ->
                         PatientCard(
                             patient = patient,
                             onStartHamA = {

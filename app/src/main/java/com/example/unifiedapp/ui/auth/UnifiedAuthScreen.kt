@@ -143,7 +143,7 @@ fun UnifiedAuthScreen(
         }
     }
 
-    // ✅ FIX: Add imePadding and navigationBarsPadding for proper keyboard handling
+    // Add imePadding and navigationBarsPadding for proper keyboard handling
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -364,7 +364,7 @@ fun UnifiedAuthScreen(
                         ) {
                             Box(
                                 modifier = Modifier.fillMaxSize().background(
-                                    Brush.linearGradient(colors = listOf(AuthLavenderPrimary, AuthLavenderAccent)),
+                                    Brush.linearGradient(colors = listOf(Color(0xFF7C3AED), Color(0xFF8B5CF6))), // Darker
                                     RoundedCornerShape(14.dp)
                                 ),
                                 contentAlignment = Alignment.Center
@@ -377,20 +377,9 @@ fun UnifiedAuthScreen(
                             }
                         }
 
-                        // Clinician Registration Link & Hint Text
+                        // Clinician Registration Link (hint text removed)
                         if (selectedRole == "clinician") {
                             Spacer(modifier = Modifier.height(12.dp))
-
-                            Text(
-                                text = "Clinician login requires the Registration ID sent to your registered email. Patient accounts cannot log in here.",
-                                fontSize = 12.sp,
-                                color = AuthTextSecondary,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 8.dp)
-                            )
-
                             Row(
                                 horizontalArrangement = Arrangement.Center,
                                 modifier = Modifier.fillMaxWidth()
@@ -414,7 +403,7 @@ fun UnifiedAuthScreen(
                     }
                 }
             } else {
-                // ========== PATIENT SIGNUP FORM (Fully Scrollable – outer scroll handles it) ==========
+                // ========== PATIENT SIGNUP FORM ==========
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
@@ -432,9 +421,7 @@ fun UnifiedAuthScreen(
                         OutlinedTextField(
                             value = signupRegId,
                             onValueChange = { signupRegId = it },
-
                             label = { Text("Patient ID *") },
-
                             leadingIcon = { Icon(Icons.Default.Badge, null, tint = AuthLavenderPrimary) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
@@ -659,7 +646,7 @@ fun UnifiedAuthScreen(
                         ) {
                             Box(
                                 modifier = Modifier.fillMaxSize().background(
-                                    Brush.linearGradient(colors = listOf(AuthLavenderPrimary, AuthLavenderAccent)),
+                                    Brush.linearGradient(colors = listOf(Color(0xFF7C3AED), Color(0xFF8B5CF6))), // Darker
                                     RoundedCornerShape(14.dp)
                                 ),
                                 contentAlignment = Alignment.Center
@@ -700,7 +687,7 @@ fun UnifiedAuthScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ✅ FIX: Only show this outer toggle link when in login mode (prevents duplicate in signup)
+            // Outer toggle link only in login mode (prevents duplicate in signup)
             if (isLoginMode && selectedRole == "patient") {
                 Row(
                     horizontalArrangement = Arrangement.Center,
@@ -727,7 +714,7 @@ fun UnifiedAuthScreen(
     }
 }
 
-// ==================== API FUNCTIONS (Patient only) – unchanged ====================
+// ==================== API FUNCTIONS ====================
 
 suspend fun performLogin(
     context: Context,
@@ -766,7 +753,6 @@ suspend fun performLogin(
                 val json = JSONObject(response)
                 val trialsObj = json.optJSONObject("trials")
 
-                // Role validation – same as before
                 if (expectedRole == "patient") {
                     val isPatient = trialsObj != null &&
                             trialsObj.has("depression") &&
@@ -802,7 +788,6 @@ suspend fun performLogin(
                 )
                 Pair(profile, null)
             } else {
-                // ✅ Parse backend error message from response (if any)
                 val errorMsg = try {
                     val errorJson = JSONObject(response)
                     errorJson.optString("detail", errorJson.optString("message", "Login failed"))
