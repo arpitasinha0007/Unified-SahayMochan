@@ -1,5 +1,5 @@
 package com.example.unifiedapp.ui.views
-import java.util.UUID
+
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -22,10 +22,11 @@ import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.OkHttpClient
+import org.json.JSONObject
+import java.util.UUID
 
 // ── Shared sealed states ──────────────────────────────
 sealed class AssessmentListState {
@@ -220,7 +221,6 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
                         phoneNumber = null
                     )
                     loadAssessmentsIfLoggedIn()
-                    // ✅ Fix: pass registrationId (same as input) as second parameter
                     _registerState.value = RegisterState.Success(body.message, registrationId)
                     registerResult.value = body.message
                     resetRegistrationFlow()
@@ -236,7 +236,7 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    // ✅ NEW PATIENT REGISTRATION (no user‑entered registration_id)
+    // ✅ PATIENT REGISTRATION – NO roll_no sent (backend auto‑generates it)
     fun registerPatient(
         name: String,
         email: String,
@@ -251,9 +251,7 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             _registerState.value = RegisterState.Loading
             try {
-                // Generate a unique roll_no (e.g., random UUID without dashes)
-                val uniqueRollNo = "ROLL_${UUID.randomUUID().toString().replace("-", "").take(16)}"
-
+                // ❌ Do NOT send any roll_no – backend will generate it automatically
                 val request = PatientRegisterRequest(
                     name = name,
                     password = password,
@@ -263,8 +261,7 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
                     phone_no = phoneNumber,
                     is_underage = isUnderage,
                     parent_name = parentName,
-                    parent_email = parentEmail,
-                    roll_no = uniqueRollNo   // ✅ Send unique roll_no
+                    parent_email = parentEmail
                 )
                 val response = ApiClient.authApi.registerPatient(request)
                 if (response.isSuccessful && response.body() != null) {
@@ -621,6 +618,39 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // ✅ NEW: Send patient registration ID email (uses the same Apps Script with action="sendRegistrationId")
+    suspend fun sendPatientRegistrationEmail(
+        toEmail: String,
+        name: String,
+        registrationId: String
+    ): Boolean {
+        return withContext(Dispatchers.IO) {
+            try {
+                // ✅ NEW working URL for patient registration email
+                val scriptUrl = "https://script.google.com/macros/s/AKfycbxs_eizyjEBsKECWgoDSHX_A-AYvVTt2rGXJXsq4oQkHYau8z87vQMqGRE779U-0A41MQ/exec"
+                val client = OkHttpClient()
+                val json = JSONObject().apply {
+                    put("action", "sendRegistrationId")
+                    put("name", name)
+                    put("email", toEmail)
+                    put("registrationId", registrationId)
+                }
+                val body = json.toString().toRequestBody("application/json".toMediaType())
+                val request = okhttp3.Request.Builder()
+                    .url(scriptUrl)
+                    .post(body)
+                    .build()
+                val response = client.newCall(request).execute()
+                val isSuccess = response.isSuccessful
+                response.close()
+                Log.d("PatientRegistrationEmail", "Email sent to $toEmail, success: $isSuccess")
+                isSuccess
+            } catch (e: Exception) {
+                Log.e("PatientRegistrationEmail", "Failed to send email: ${e.message}", e)
+                false
+            }
+        }
+    }
     private val _clinicianRegisterState = MutableStateFlow<RegisterState>(RegisterState.Idle)
     val clinicianRegisterState: StateFlow<RegisterState> = _clinicianRegisterState.asStateFlow()
 

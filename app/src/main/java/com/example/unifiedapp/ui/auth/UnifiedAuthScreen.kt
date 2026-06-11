@@ -129,22 +129,31 @@ fun UnifiedAuthScreen(
 
     // Handle registration result
     LaunchedEffect(registerState) {
-        when (registerState) {
+        when (val state = registerState) {
             is RegisterState.Success -> {
                 isLoading = false
-                generatedRegId = (registerState as RegisterState.Success).registrationId
+                generatedRegId = state.registrationId
                 showRegDialog = true
+
+                // Send email in background (fire and forget)
+                scope.launch {
+                    authViewModel.sendPatientRegistrationEmail(
+                        toEmail = signupEmail,
+                        name = signupName,
+                        registrationId = generatedRegId
+                    )
+                }
+
                 authViewModel.clearRegisterState()
             }
             is RegisterState.Error -> {
                 isLoading = false
-                errorMessage = (registerState as RegisterState.Error).message
+                errorMessage = state.message
                 authViewModel.clearRegisterState()
             }
             else -> {}
         }
     }
-
     // Observe clinician login state
     val clinicianLoginState by authViewModel.clinicianLoginState.collectAsState()
     LaunchedEffect(clinicianLoginState) {

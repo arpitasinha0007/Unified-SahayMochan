@@ -31,7 +31,7 @@ data class PatientRegisterRequest(
     val is_underage: Boolean = false,
     val parent_name: String? = null,
     val parent_email: String? = null,
-    val roll_no: String? = null   // ✅ Added – will be generated uniquely
+//    val roll_no: String? = null   // ✅ Added – will be generated uniquely
 )
 
 data class RegisterResponse(
