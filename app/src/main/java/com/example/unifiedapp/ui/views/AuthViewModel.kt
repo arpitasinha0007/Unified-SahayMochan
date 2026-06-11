@@ -1,5 +1,5 @@
 package com.example.unifiedapp.ui.views
-
+import java.util.UUID
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -27,7 +27,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.OkHttpClient
 
-// ── Shared sealed states (unchanged) ──────────────────────────────
+// ── Shared sealed states ──────────────────────────────
 sealed class AssessmentListState {
     object Idle : AssessmentListState()
     object Loading : AssessmentListState()
@@ -38,7 +38,7 @@ sealed class AssessmentListState {
 sealed class RegisterState {
     object Idle : RegisterState()
     object Loading : RegisterState()
-    data class Success(val message: String) : RegisterState()
+    data class Success(val message: String, val registrationId: String) : RegisterState()
     data class Error(val message: String) : RegisterState()
 }
 
@@ -71,7 +71,6 @@ sealed class RegistrationFlowState {
     data class Error(val message: String) : RegistrationFlowState()
 }
 
-// ✅ Data class to hold clinician registration result
 data class ClinicianRegResult(
     val registrationId: String,
     val name: String,
@@ -178,6 +177,7 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // Legacy registration – kept for backward compatibility (not used in new flow)
     fun registerWithoutPhone(
         registrationId: String,
         password: String,
@@ -220,9 +220,59 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
                         phoneNumber = null
                     )
                     loadAssessmentsIfLoggedIn()
-                    _registerState.value = RegisterState.Success(body.message)
+                    // ✅ Fix: pass registrationId (same as input) as second parameter
+                    _registerState.value = RegisterState.Success(body.message, registrationId)
                     registerResult.value = body.message
                     resetRegistrationFlow()
+                } else {
+                    val errorMsg = response.errorBody()?.string() ?: "Registration failed"
+                    _registerState.value = RegisterState.Error(errorMsg)
+                    registerResult.value = errorMsg
+                }
+            } catch (e: Exception) {
+                _registerState.value = RegisterState.Error(e.message ?: "Network error")
+                registerResult.value = e.message
+            }
+        }
+    }
+
+    // ✅ NEW PATIENT REGISTRATION (no user‑entered registration_id)
+    fun registerPatient(
+        name: String,
+        email: String,
+        password: String,
+        age: Int,
+        gender: String,
+        phoneNumber: String? = null,
+        isUnderage: Boolean = false,
+        parentName: String? = null,
+        parentEmail: String? = null
+    ) {
+        viewModelScope.launch {
+            _registerState.value = RegisterState.Loading
+            try {
+                // Generate a unique roll_no (e.g., random UUID without dashes)
+                val uniqueRollNo = "ROLL_${UUID.randomUUID().toString().replace("-", "").take(16)}"
+
+                val request = PatientRegisterRequest(
+                    name = name,
+                    password = password,
+                    age = age,
+                    email = email,
+                    gender = gender,
+                    phone_no = phoneNumber,
+                    is_underage = isUnderage,
+                    parent_name = parentName,
+                    parent_email = parentEmail,
+                    roll_no = uniqueRollNo   // ✅ Send unique roll_no
+                )
+                val response = ApiClient.authApi.registerPatient(request)
+                if (response.isSuccessful && response.body() != null) {
+                    val body = response.body()!!
+                    val successMessage = body.message ?: "Registration successful"
+                    val generatedId = body.registration_id ?: ""
+                    _registerState.value = RegisterState.Success(successMessage, generatedId)
+                    registerResult.value = successMessage
                 } else {
                     val errorMsg = response.errorBody()?.string() ?: "Registration failed"
                     _registerState.value = RegisterState.Error(errorMsg)
@@ -370,7 +420,7 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    // ✅ Patient login – uses correct field names from models.LoginResponse
+    // ✅ Patient login
     fun login(id: String, password: String) {
         _loginState.value = LoginState.Loading
         ApiClient.authApi.loginUser(LoginRequest(id, password))
@@ -411,7 +461,7 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
             })
     }
 
-    // ========== CLINICAL FUNCTIONS (with fixed clinician login) ==========
+    // ========== CLINICAL FUNCTIONS ==========
     fun loginClinician(registrationId: String, password: String) {
         _clinicianLoginState.value = LoginState.Loading
         viewModelScope.launch {
@@ -454,7 +504,6 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    // ✅ Updated submitHamA with detailed logging
     fun submitHamA(patientId: String, clinicianId: String, itemScores: List<Int>) {
         viewModelScope.launch {
             _submissionState.value = ClinicalSubmissionState.Loading
@@ -468,7 +517,7 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
                         message = "HAM-A assessment saved",
                         score = body.totalScore,
                         severity = body.severity,
-                        assessmentId = body.assessmentId   // ✅ added
+                        assessmentId = body.assessmentId
                     )
                 } else {
                     val errorBody = response.errorBody()?.string()
@@ -495,7 +544,7 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
                         message = "HDRS assessment saved",
                         score = body.totalScore,
                         severity = body.severity,
-                        assessmentId = body.assessmentId   // ✅ added
+                        assessmentId = body.assessmentId
                     )
                 } else {
                     val errorBody = response.errorBody()?.string()
@@ -508,7 +557,6 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
     }
-
 
     fun resetSubmissionState() {
         _submissionState.value = ClinicalSubmissionState.Idle
@@ -530,11 +578,9 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
             val response = ApiClient.authApi.getStudentAssessments(registrationId)
             if (response.isSuccessful && response.body() != null) {
                 val assessments = response.body()!!.assessments
-                // Latest GAD-7 score (from any record where gad7Score > 0)
                 val latestGad = assessments
                     .filter { it.gad7Score != null && it.gad7Score > 0 }
                     .maxByOrNull { it.createdAt }
-                // Latest PHQ-9 score (from any record where phqScore > 0)
                 val latestPhq = assessments
                     .filter { it.phqScore != null && it.phqScore > 0 }
                     .maxByOrNull { it.createdAt }
@@ -547,7 +593,6 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    // ✅ NEW: Send clinician ID email using Apps Script web app
     suspend fun sendClinicianIdEmail(email: String, name: String, clinicianId: String): Boolean {
         return withContext(Dispatchers.IO) {
             try {
@@ -579,7 +624,6 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
     private val _clinicianRegisterState = MutableStateFlow<RegisterState>(RegisterState.Idle)
     val clinicianRegisterState: StateFlow<RegisterState> = _clinicianRegisterState.asStateFlow()
 
-    // ✅ New flow for clinician registration result
     private val _clinicianRegResult = MutableStateFlow<ClinicianRegResult?>(null)
     val clinicianRegResult: StateFlow<ClinicianRegResult?> = _clinicianRegResult.asStateFlow()
 
@@ -592,13 +636,9 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
                 if (response.isSuccessful && response.body() != null) {
                     val body = response.body()!!
                     if (body.success) {
-                        // Store the result for showing registration ID to the clinician
                         _clinicianRegResult.value = ClinicianRegResult(body.registration_id, body.name, body.user_id)
-                        // ✅ Send email with registration ID (fire and forget)
-                        launch {
-                            sendClinicianIdEmail(email, name, body.registration_id)
-                        }
-                        _clinicianRegisterState.value = RegisterState.Success("Clinician registered! Please login.")
+                        launch { sendClinicianIdEmail(email, name, body.registration_id) }
+                        _clinicianRegisterState.value = RegisterState.Success("Clinician registered! Please login.", body.registration_id)
                     } else {
                         _clinicianRegisterState.value = RegisterState.Error(body.message ?: "Registration failed")
                     }

@@ -75,7 +75,7 @@ interface AuthApi {
 
     // Clinical endpoints
     @POST("register-patient")
-    suspend fun registerPatient(@Body request: RegisterRequest): Response<RegisterResponse>
+    suspend fun registerPatient(@Body request: PatientRegisterRequest): Response<RegisterResponse>
 
     // ✅ Clinician login uses QUERY parameters
     @POST("login-clinician")

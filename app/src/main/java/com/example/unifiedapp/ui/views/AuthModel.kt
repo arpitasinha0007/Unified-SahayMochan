@@ -21,6 +21,18 @@ data class RegisterRequest(
     val phone_no: String? = null
 )
 
+data class PatientRegisterRequest(
+    val name: String,
+    val password: String,
+    val age: Int,
+    val email: String,
+    val gender: String,
+    val phone_no: String? = null,
+    val is_underage: Boolean = false,
+    val parent_name: String? = null,
+    val parent_email: String? = null,
+    val roll_no: String? = null   // ✅ Added – will be generated uniquely
+)
 
 data class RegisterResponse(
     val message: String,

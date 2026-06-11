@@ -1,13 +1,17 @@
 package com.example.unifiedapp.ui.auth
 
 import android.app.Application
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -33,6 +37,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavController
 import com.example.unifiedapp.navigation.Screen
 import com.example.unifiedapp.ui.views.AuthViewModel
+import com.example.unifiedapp.ui.views.RegisterState
 import com.example.unifiedapp.utils.UserSessionHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -106,8 +111,7 @@ fun UnifiedAuthScreen(
     var loginPassword by remember { mutableStateOf("") }
     var loginPasswordVisible by remember { mutableStateOf(false) }
 
-    // Signup fields (patient only)
-    var signupRegId by remember { mutableStateOf("") }
+    // Signup fields (patient only) – NO registration ID field
     var signupName by remember { mutableStateOf("") }
     var signupEmail by remember { mutableStateOf("") }
     var signupAge by remember { mutableStateOf("") }
@@ -115,6 +119,31 @@ fun UnifiedAuthScreen(
     var signupPassword by remember { mutableStateOf("") }
     var signupConfirmPassword by remember { mutableStateOf("") }
     var signupPasswordVisible by remember { mutableStateOf(false) }
+
+    // Dialog state
+    var showRegDialog by remember { mutableStateOf(false) }
+    var generatedRegId by remember { mutableStateOf("") }
+
+    // Observe register state
+    val registerState by authViewModel.registerState.collectAsState()
+
+    // Handle registration result
+    LaunchedEffect(registerState) {
+        when (registerState) {
+            is RegisterState.Success -> {
+                isLoading = false
+                generatedRegId = (registerState as RegisterState.Success).registrationId
+                showRegDialog = true
+                authViewModel.clearRegisterState()
+            }
+            is RegisterState.Error -> {
+                isLoading = false
+                errorMessage = (registerState as RegisterState.Error).message
+                authViewModel.clearRegisterState()
+            }
+            else -> {}
+        }
+    }
 
     // Observe clinician login state
     val clinicianLoginState by authViewModel.clinicianLoginState.collectAsState()
@@ -128,7 +157,6 @@ fun UnifiedAuthScreen(
             }
             is AuthViewModel.LoginState.Error -> {
                 val error = (clinicianLoginState as AuthViewModel.LoginState.Error).message
-                // Add helpful hint for patient trying to login as clinician
                 val hint = if (error.contains("Invalid credentials", ignoreCase = true) ||
                     error.contains("Login failed", ignoreCase = true)) {
                     "\n\nTip: Make sure you are using your Clinician Registration ID. If you are a patient, please use the Patient tab."
@@ -143,7 +171,6 @@ fun UnifiedAuthScreen(
         }
     }
 
-    // Add imePadding and navigationBarsPadding for proper keyboard handling
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -271,7 +298,7 @@ fun UnifiedAuthScreen(
                 Spacer(modifier = Modifier.height(16.dp))
             }
 
-            // Login Form
+            // Login Form (unchanged)
             if (isLoginMode) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -364,7 +391,7 @@ fun UnifiedAuthScreen(
                         ) {
                             Box(
                                 modifier = Modifier.fillMaxSize().background(
-                                    Brush.linearGradient(colors = listOf(Color(0xFF7C3AED), Color(0xFF8B5CF6))), // Darker
+                                    Brush.linearGradient(colors = listOf(Color(0xFF7C3AED), Color(0xFF8B5CF6))),
                                     RoundedCornerShape(14.dp)
                                 ),
                                 contentAlignment = Alignment.Center
@@ -377,22 +404,17 @@ fun UnifiedAuthScreen(
                             }
                         }
 
-                        // Clinician Registration Link (hint text removed)
+                        // Clinician Registration Link
                         if (selectedRole == "clinician") {
                             Spacer(modifier = Modifier.height(12.dp))
-
-                            // Spam reminder only
                             Text(
                                 text = "📧 The registration id will be sent through mail. If you don't see the email in your inbox, please check your Spam/Junk folder.",
                                 fontSize = 12.sp,
                                 color = AuthTextSecondary,
                                 fontWeight = FontWeight.Medium,
                                 textAlign = TextAlign.Center,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 8.dp)
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
                             )
-
                             Row(
                                 horizontalArrangement = Arrangement.Center,
                                 modifier = Modifier.fillMaxWidth()
@@ -412,10 +434,11 @@ fun UnifiedAuthScreen(
                                     }
                                 )
                             }
-                        }                    }
+                        }
+                    }
                 }
             } else {
-                // ========== PATIENT SIGNUP FORM ==========
+                // ========== PATIENT SIGNUP FORM (NO REGISTRATION ID FIELD) ==========
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(24.dp),
@@ -429,25 +452,6 @@ fun UnifiedAuthScreen(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Text("Patient Registration", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = AuthTextPrimary)
-
-                        OutlinedTextField(
-                            value = signupRegId,
-                            onValueChange = { signupRegId = it },
-                            label = { Text("Patient ID *") },
-                            leadingIcon = { Icon(Icons.Default.Badge, null, tint = AuthLavenderPrimary) },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AuthLavenderPrimary,
-                                unfocusedBorderColor = AuthLavenderAccent.copy(alpha = 0.5f)
-                            ),
-                            isError = signupRegId.isNotBlank() && signupRegId.length < 3,
-                            supportingText = {
-                                if (signupRegId.isNotBlank() && signupRegId.length < 3) {
-                                    Text("Registration ID must be at least 3 characters")
-                                }
-                            }
-                        )
 
                         OutlinedTextField(
                             value = signupName,
@@ -578,73 +582,48 @@ fun UnifiedAuthScreen(
 
                         Button(
                             onClick = {
-                                scope.launch {
-                                    if (signupRegId.isBlank()) {
-                                        errorMessage = "Registration ID is required"
-                                        return@launch
-                                    }
-                                    if (signupName.isBlank()) {
-                                        errorMessage = "Name is required"
-                                        return@launch
-                                    }
-                                    if (signupEmail.isBlank()) {
-                                        errorMessage = "Email is required"
-                                        return@launch
-                                    }
-                                    val ageInt = signupAge.toIntOrNull()
-                                    if (ageInt == null || ageInt < 18) {
-                                        errorMessage = "Age must be 18 or older"
-                                        return@launch
-                                    }
-                                    if (signupGender.isBlank()) {
-                                        errorMessage = "Gender is required"
-                                        return@launch
-                                    }
-                                    if (signupPassword.length < 6) {
-                                        errorMessage = "Password must be at least 6 characters"
-                                        return@launch
-                                    }
-                                    if (signupPassword != signupConfirmPassword) {
-                                        errorMessage = "Passwords do not match"
-                                        return@launch
-                                    }
-
-                                    isLoading = true
-                                    errorMessage = null
-
-                                    val result = performSignup(
-                                        registrationId = signupRegId,
-                                        password = signupPassword,
-                                        name = signupName,
-                                        gender = signupGender,
-                                        email = signupEmail,
-                                        age = ageInt
-                                    )
-
-                                    isLoading = false
-
-                                    if (result.first != null) {
-                                        val loginResult = performLogin(
-                                            context = context,
-                                            registrationId = signupRegId,
-                                            password = signupPassword,
-                                            expectedRole = "patient"
-                                        )
-                                        if (loginResult.first != null) {
-                                            onLoginSuccess(loginResult.first!!)
-                                        } else {
-                                            errorMessage = "Signup successful! Please login."
-                                            isLoginMode = true
-                                            loginRegId = signupRegId
-                                            loginPassword = signupPassword
-                                        }
-                                    } else {
-                                        errorMessage = result.second ?: "Signup failed"
-                                    }
+                                if (signupName.isBlank()) {
+                                    errorMessage = "Name is required"
+                                    return@Button
                                 }
+                                if (signupEmail.isBlank()) {
+                                    errorMessage = "Email is required"
+                                    return@Button
+                                }
+                                val ageInt = signupAge.toIntOrNull()
+                                if (ageInt == null || ageInt < 18) {
+                                    errorMessage = "Age must be 18 or older"
+                                    return@Button
+                                }
+                                if (signupGender.isBlank()) {
+                                    errorMessage = "Gender is required"
+                                    return@Button
+                                }
+                                if (signupPassword.length < 6) {
+                                    errorMessage = "Password must be at least 6 characters"
+                                    return@Button
+                                }
+                                if (signupPassword != signupConfirmPassword) {
+                                    errorMessage = "Passwords do not match"
+                                    return@Button
+                                }
+
+                                isLoading = true
+                                errorMessage = null
+
+                                authViewModel.registerPatient(
+                                    name = signupName,
+                                    email = signupEmail,
+                                    password = signupPassword,
+                                    age = ageInt,
+                                    gender = signupGender,
+                                    phoneNumber = null,
+                                    isUnderage = false,
+                                    parentName = null,
+                                    parentEmail = null
+                                )
                             },
                             enabled = !isLoading &&
-                                    signupRegId.isNotBlank() &&
                                     signupName.isNotBlank() &&
                                     signupEmail.isNotBlank() &&
                                     signupAge.isNotBlank() &&
@@ -658,7 +637,7 @@ fun UnifiedAuthScreen(
                         ) {
                             Box(
                                 modifier = Modifier.fillMaxSize().background(
-                                    Brush.linearGradient(colors = listOf(Color(0xFF7C3AED), Color(0xFF8B5CF6))), // Darker
+                                    Brush.linearGradient(colors = listOf(Color(0xFF7C3AED), Color(0xFF8B5CF6))),
                                     RoundedCornerShape(14.dp)
                                 ),
                                 contentAlignment = Alignment.Center
@@ -699,7 +678,7 @@ fun UnifiedAuthScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Outer toggle link only in login mode (prevents duplicate in signup)
+            // Outer toggle link only in login mode
             if (isLoginMode && selectedRole == "patient") {
                 Row(
                     horizontalArrangement = Arrangement.Center,
@@ -724,10 +703,103 @@ fun UnifiedAuthScreen(
             }
         }
     }
+
+    // ========== SUCCESS DIALOG (shows the auto‑generated ID) ==========
+    if (showRegDialog && generatedRegId.isNotBlank()) {
+        AlertDialog(
+            onDismissRequest = {
+                showRegDialog = false
+                // Switch to login mode and clear form
+                isLoginMode = true
+                signupName = ""
+                signupEmail = ""
+                signupAge = ""
+                signupGender = ""
+                signupPassword = ""
+                signupConfirmPassword = ""
+                errorMessage = null
+            },
+            title = {
+                Text(
+                    "Registration Successful",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp
+                )
+            },
+            text = {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "Your patient account has been created.",
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Surface(
+                        color = AuthLavenderPrimary.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                "Registration ID",
+                                fontSize = 12.sp,
+                                color = AuthTextSecondary
+                            )
+                            SelectionContainer {
+                                Text(
+                                    text = generatedRegId,
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AuthLavenderPrimary,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                )
+                            }
+                        }
+                    }
+                    Text(
+                        "Long press on the ID to copy it.",
+                        fontSize = 12.sp,
+                        color = AuthTextSecondary,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        // Copy to clipboard
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = ClipData.newPlainText("Registration ID", generatedRegId)
+                        clipboard.setPrimaryClip(clip)
+                        Toast.makeText(context, "Registration ID copied", Toast.LENGTH_SHORT).show()
+
+                        showRegDialog = false
+                        isLoginMode = true
+                        signupName = ""
+                        signupEmail = ""
+                        signupAge = ""
+                        signupGender = ""
+                        signupPassword = ""
+                        signupConfirmPassword = ""
+                        errorMessage = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = AuthLavenderPrimary),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("OK", color = Color.White, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
+    }
 }
 
-// ==================== API FUNCTIONS ====================
-
+// ==================== LOGIN API FUNCTION (only) ====================
 suspend fun performLogin(
     context: Context,
     registrationId: String,
@@ -814,77 +886,7 @@ suspend fun performLogin(
     }
 }
 
-suspend fun performSignup(
-    registrationId: String,
-    password: String,
-    name: String,
-    gender: String,
-    email: String,
-    age: Int
-): Pair<UserProfile?, String?> {
-    return withContext(Dispatchers.IO) {
-        try {
-            val url = URL("http://203.110.243.202:8000/register-user")
-            val connection = url.openConnection() as HttpURLConnection
-            connection.requestMethod = "POST"
-            connection.setRequestProperty("Content-Type", "application/json")
-            connection.doOutput = true
-            connection.connectTimeout = 15000
-            connection.readTimeout = 15000
-
-            val requestBody = JSONObject().apply {
-                put("registration_id", registrationId)
-                put("password", password)
-                put("name", name)
-                put("gender", gender)
-                put("email", email)
-                put("age", age)
-                put("roll_no", registrationId)
-                put("phone_no", JSONObject.NULL)
-                put("is_underage", false)
-                put("parent_name", JSONObject.NULL)
-                put("parent_email", JSONObject.NULL)
-            }
-
-            connection.outputStream.use { os ->
-                os.write(requestBody.toString().toByteArray())
-            }
-
-            val responseCode = connection.responseCode
-            val response = if (responseCode in 200..299) {
-                connection.inputStream.bufferedReader().use { it.readText() }
-            } else {
-                connection.errorStream?.bufferedReader()?.use { it.readText() } ?: ""
-            }
-            connection.disconnect()
-
-            if (responseCode in 200..299) {
-                val anonymousId = generateAnonymousId(name, registrationId)
-                val profile = UserProfile(
-                    name = name,
-                    email = email,
-                    registrationId = registrationId,
-                    age = age,
-                    gender = gender,
-                    isLoggedIn = false,
-                    anonymousId = anonymousId
-                )
-                Pair(profile, null)
-            } else {
-                val errorMsg = try {
-                    val json = JSONObject(response)
-                    json.optString("detail", json.optString("message", response))
-                } catch (e: Exception) {
-                    response
-                }
-                Pair(null, "Signup failed: $errorMsg")
-            }
-        } catch (e: Exception) {
-            Pair(null, "Connection failed: ${e.message}")
-        }
-    }
-}
-
+// ==================== SESSION HELPER FUNCTIONS ====================
 fun saveUserSession(
     context: Context,
     registrationId: String,
