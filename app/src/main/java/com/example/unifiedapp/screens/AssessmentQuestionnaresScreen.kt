@@ -77,7 +77,7 @@ data class AnswerOption(
     val emoji: String
 )
 
-// --- CONSTANTS ---
+// --- CONSTANTS (ENGLISH) ---
 val PHQ9_QUESTIONS = listOf(
     "Little interest or pleasure in doing things",
     "Feeling down, depressed, or hopeless",
@@ -105,6 +105,36 @@ val ANSWER_OPTIONS = listOf(
     AnswerOption("1", "Several days", 1, "😐"),
     AnswerOption("2", "More than half the days", 2, "😔"),
     AnswerOption("3", "Nearly every day", 3, "😢"),
+)
+
+// --- BENGALI TRANSLATIONS ---
+val PHQ9_QUESTIONS_BN = listOf(
+    "কাজ বা আনন্দের প্রতি আগ্রহ কমে যাওয়া",
+    "মনে খারাপ, বিষণ্ণ বা আশাহীন বোধ করা",
+    "ঘুমাতে সমস্যা, বা অনেক বেশি ঘুমানো",
+    "ক্লান্তি বা খুব কম শক্তি বোধ করা",
+    "ক্ষুধা কমে যাওয়া বা অতিরিক্ত খাওয়া",
+    "নিজের সম্পর্কে খারাপ অনুভব করা বা ব্যর্থ বলে মনে করা",
+    "কোনো বিষয়ে মনোযোগ দিতে সমস্যা হওয়া",
+    "অন্যের তুলনায় ধীর গতিতে নড়াচড়া বা অস্থিরতা",
+    "মৃত্যু বা নিজের ক্ষতি করার চিন্তা আসা"
+)
+
+val GAD7_QUESTIONS_BN = listOf(
+    "নার্ভাস, উদ্বিগ্ন বা অস্থির বোধ করা",
+    "চিন্তা করা বন্ধ করতে বা নিয়ন্ত্রণ করতে না পারা",
+    "বিভিন্ন বিষয় নিয়ে অতিরিক্ত চিন্তা করা",
+    "আরাম করতে সমস্যা হওয়া",
+    "এত অস্থির লাগা যে বসে থাকা কঠিন",
+    "সহজেই বিরক্ত বা খিটখিটে হয়ে যাওয়া",
+    "ভয় লাগা যেন কিছু খারাপ ঘটতে চলেছে"
+)
+
+val ANSWER_OPTIONS_BN = listOf(
+    AnswerOption("0", "একেবারেই না", 0, "😊"),
+    AnswerOption("1", "কয়েক দিন", 1, "😐"),
+    AnswerOption("2", "অর্ধেকের বেশি দিন", 2, "😔"),
+    AnswerOption("3", "প্রায় প্রতিদিন", 3, "😢")
 )
 
 // ========== HELPER FUNCTIONS FOR TEMPORARY STORAGE ==========
@@ -137,7 +167,18 @@ fun AssessmentQuestionnairesScreen(
     assessmentType: String = "depression"
 ) {
     val isDepression = assessmentType == "depression"
-    val questions = if (isDepression) PHQ9_QUESTIONS else GAD7_QUESTIONS
+
+    // Language selection state
+    var isBengali by remember { mutableStateOf(false) }
+
+    // Choose language-specific questions and options
+    val questions = if (isDepression) {
+        if (isBengali) PHQ9_QUESTIONS_BN else PHQ9_QUESTIONS
+    } else {
+        if (isBengali) GAD7_QUESTIONS_BN else GAD7_QUESTIONS
+    }
+    val answerOptions = if (isBengali) ANSWER_OPTIONS_BN else ANSWER_OPTIONS
+
     val totalQuestions = questions.size
 
     // Mochan purple gradient (same as profile screen)
@@ -289,8 +330,9 @@ fun AssessmentQuestionnairesScreen(
             val csvContent = StringBuilder()
             csvContent.append("question_index,question_text,answer_score\n")
             answers.forEach { (index, score) ->
-                val questionText = questions.getOrNull(index) ?: "Unknown Question"
-                csvContent.append("$index,\"$questionText\",$score\n")
+                // Save the original English question text (for consistency with backend)
+                val questionText = if (isDepression) PHQ9_QUESTIONS.getOrNull(index) else GAD7_QUESTIONS.getOrNull(index)
+                csvContent.append("$index,\"${questionText ?: "Unknown Question"}\",$score\n")
             }
             csvFile.writeText(csvContent.toString())
 
@@ -323,21 +365,15 @@ fun AssessmentQuestionnairesScreen(
         val prediction = cameraViewModel.getPrediction()
         cameraViewModel.saveCSVWithAUData(context)
 
-        // ✅ Load answers from SharedPreferences (reliable, survives recomposition)
+        // Load answers from SharedPreferences
         val savedAnswers = loadAnswersFromPrefs(tempPrefs, totalQuestions)
-
-        // 🔍 DEBUG: Show assessment type and saved answers in log and Toast
-        Log.d("MOCHAN_DEBUG", "Assessment type: $assessmentType, totalQuestions: $totalQuestions")
-        Log.d("MOCHAN_DEBUG", "Saved answers from prefs: $savedAnswers")
 
         // Calculate total score
         var totalScore = 0
         for (i in 0 until totalQuestions) {
             val ans = savedAnswers[i] ?: 0
-            Log.d("MOCHAN_DEBUG", "Question $i -> answer = $ans")
             totalScore += ans
         }
-        Log.d("MOCHAN_DEBUG", "Total score = $totalScore")
 
         val maxScore = if (isDepression) 27 else 21
         val finalScore = totalScore.coerceIn(0, maxScore)
@@ -345,7 +381,7 @@ fun AssessmentQuestionnairesScreen(
         // Clear temporary answers after use
         clearAnswersFromPrefs(tempPrefs, totalQuestions)
 
-        // Save final CSV (for upload)
+        // Save final CSV (for upload) – uses English questions for data consistency
         saveQuestionnaireCsv(context, anonymousId, assessmentType, savedAnswers)
 
         // Save to permanent preferences (for result screen)
@@ -394,47 +430,68 @@ fun AssessmentQuestionnairesScreen(
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
-            .background(purpleGradient),   // ← Mochan purple gradient background
-        containerColor = Color.Transparent, // let gradient show through
+            .background(purpleGradient),
+        containerColor = Color.Transparent,
         topBar = {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = if (isDepression) Color(0xFFFFFDF9).copy(alpha = 0.4f) else Color.White.copy(alpha = 0.9f),
                 shadowElevation = 0.dp
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = {
-                        cameraViewModel.stopRecording()
-                        navController.popBackStack()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.Black)
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Brush.linearGradient(gradientColors)),
-                        contentAlignment = Alignment.Center
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Default.MonitorHeart, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+                        IconButton(onClick = {
+                            cameraViewModel.stopRecording()
+                            navController.popBackStack()
+                        }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.Black)
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Brush.linearGradient(gradientColors)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.MonitorHeart, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                if (isDepression) "Mochan Assessment" else "Sahay Assessment",
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isDepression) Color(0xFF1D2335) else SahayCharcoal
+                            )
+                            Text(
+                                if (isDepression) "PHQ-9 with AI Analysis" else "GAD-7 with AI Analysis",
+                                fontSize = 14.sp,
+                                color = if (isDepression) Color(0xFF4B5563) else SahayMutedSlate
+                            )
+                        }
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column {
-                        Text(
-                            if (isDepression) "Mochan Assessment" else "Sahay Assessment",
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (isDepression) Color(0xFF1D2335) else SahayCharcoal
+                    // Language toggle row
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("English", fontSize = 12.sp, color = if (!isBengali) primaryColor else Color.Gray)
+                        Switch(
+                            checked = isBengali,
+                            onCheckedChange = { isBengali = it },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = primaryColor,
+                                checkedTrackColor = primaryColor.copy(alpha = 0.5f)
+                            )
                         )
-                        Text(
-                            if (isDepression) "PHQ-9 with AI Analysis" else "GAD-7 with AI Analysis",
-                            fontSize = 14.sp,
-                            color = if (isDepression) Color(0xFF4B5563) else SahayMutedSlate
-                        )
+                        Text("বাংলা", fontSize = 12.sp, color = if (isBengali) primaryColor else Color.Gray)
                     }
                 }
             }
@@ -566,7 +623,7 @@ fun AssessmentQuestionnairesScreen(
 
                                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                        AnswerBox(ANSWER_OPTIONS[0], answers[currentQuestion]) { score ->
+                                        AnswerBox(answerOptions[0], answers[currentQuestion]) { score ->
                                             answers = answers + (currentQuestion to score)
                                             saveAnswerToPrefs(tempPrefs, currentQuestion, score)
                                             analyzing = true
@@ -580,7 +637,7 @@ fun AssessmentQuestionnairesScreen(
                                                 }
                                             }
                                         }
-                                        AnswerBox(ANSWER_OPTIONS[1], answers[currentQuestion]) { score ->
+                                        AnswerBox(answerOptions[1], answers[currentQuestion]) { score ->
                                             answers = answers + (currentQuestion to score)
                                             saveAnswerToPrefs(tempPrefs, currentQuestion, score)
                                             analyzing = true
@@ -596,7 +653,7 @@ fun AssessmentQuestionnairesScreen(
                                         }
                                     }
                                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                        AnswerBox(ANSWER_OPTIONS[2], answers[currentQuestion]) { score ->
+                                        AnswerBox(answerOptions[2], answers[currentQuestion]) { score ->
                                             answers = answers + (currentQuestion to score)
                                             saveAnswerToPrefs(tempPrefs, currentQuestion, score)
                                             analyzing = true
@@ -610,7 +667,7 @@ fun AssessmentQuestionnairesScreen(
                                                 }
                                             }
                                         }
-                                        AnswerBox(ANSWER_OPTIONS[3], answers[currentQuestion]) { score ->
+                                        AnswerBox(answerOptions[3], answers[currentQuestion]) { score ->
                                             answers = answers + (currentQuestion to score)
                                             saveAnswerToPrefs(tempPrefs, currentQuestion, score)
                                             analyzing = true
