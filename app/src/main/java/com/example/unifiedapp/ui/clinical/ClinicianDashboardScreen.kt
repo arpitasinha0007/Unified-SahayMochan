@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -43,7 +44,16 @@ fun ClinicianDashboardScreen(
     var allPatients by remember { mutableStateOf<List<PatientItem>>(emptyList()) }
     var filteredPatients by remember { mutableStateOf<List<PatientItem>>(emptyList()) }
 
-    // Define the filtering function before it's used
+    // Refresh function
+    fun refreshPatients() {
+        scope.launch {
+            clinicianId?.let {
+                authViewModel.fetchPatients(it, searchQuery.takeIf { q -> q.isNotBlank() })
+            }
+        }
+    }
+
+    // Update filtered list
     fun updateFilteredPatients() {
         val trimmedQuery = searchQuery.trim()
         if (trimmedQuery.isEmpty()) {
@@ -60,6 +70,7 @@ fun ClinicianDashboardScreen(
         }
     }
 
+    // Initial load
     LaunchedEffect(Unit) {
         clinicianId = userPreferences.getClinicianUserId()
         if (clinicianId != null) {
@@ -87,6 +98,11 @@ fun ClinicianDashboardScreen(
                     containerColor = Color(0xFFFAF8FF)
                 ),
                 actions = {
+                    // Refresh button
+                    IconButton(onClick = { refreshPatients() }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    }
+                    // Logout button
                     IconButton(onClick = {
                         scope.launch {
                             userPreferences.clearClinicianSession()
