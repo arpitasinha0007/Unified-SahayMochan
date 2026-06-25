@@ -51,9 +51,9 @@ object ReportDownloadHelper {
             // ========== ALL YOUR EXISTING DRAWING CODE (unchanged) ==========
             // Determine report title
             val reportTitle = if (assessmentType.equals("depression", ignoreCase = true)) {
-                "MOCHAN DEPRESSION ASSESSMENT REPORT"
+                "DEPRESSION ASSESSMENT REPORT"
             } else {
-                "SAHAY ANXIETY ASSESSMENT REPORT"
+                "ANXIETY ASSESSMENT REPORT"
             }
 
             val logoBitmap = try {
@@ -154,6 +154,7 @@ object ReportDownloadHelper {
                 textSize = 14f
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             }
+
             val boldTextPaint = Paint().apply {
                 color = Color.parseColor("#1F2937")
                 textSize = 11f
