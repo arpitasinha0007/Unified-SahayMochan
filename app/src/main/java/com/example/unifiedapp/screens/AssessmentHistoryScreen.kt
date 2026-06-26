@@ -22,7 +22,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -31,7 +30,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-// Import from shared files
 import com.example.unifiedapp.utils.*
 import org.json.JSONObject
 
@@ -72,7 +70,9 @@ data class AssessmentHistoryItem(
     val aiPrediction: String?,
     val createdAt: String,
     val videoCount: Int,
-    val files: AssessmentFiles?
+    val files: AssessmentFiles?,
+    // ✅ Store the raw type from API for accurate display
+    val rawAssessmentType: String?   // "depression" or "anxiety"
 )
 
 data class AssessmentFiles(
@@ -201,8 +201,8 @@ fun AssessmentHistoryScreen(
                             val createdAt = item.getString("created_at")
                             val videoCount = item.optInt("video_count", 0)
 
-                            // Try to get assessment type from API (if available)
-                            val assessmentTypeFromApi = if (item.has("assessment_type") && !item.isNull("assessment_type")) {
+                            // Get assessment type from API
+                            val rawType = if (item.has("assessment_type") && !item.isNull("assessment_type")) {
                                 item.getString("assessment_type")
                             } else null
 
@@ -220,26 +220,26 @@ fun AssessmentHistoryScreen(
                                 item.getDouble("gad_score").toInt()
                             } else null
 
-                            // Determine the assessment type display string
-                            val assessmentType = when {
-                                assessmentTypeFromApi != null -> {
-                                    when (assessmentTypeFromApi.lowercase()) {
+                            // ✅ Determine display type correctly
+                            val displayType = when {
+                                rawType != null -> {
+                                    when (rawType.lowercase()) {
                                         "depression" -> "Depression (PHQ-9)"
                                         "anxiety" -> "Anxiety (GAD-7)"
                                         else -> "Mental Health Assessment"
                                     }
                                 }
-                                phqScore != null -> "Depression (PHQ-9)"
-                                gad7Score != null -> "Anxiety (GAD-7)"
+                                phqScore != null && phqScore > 0 -> "Depression (PHQ-9)"
+                                gad7Score != null && gad7Score > 0 -> "Anxiety (GAD-7)"
                                 else -> "Mental Health Assessment"
                             }
 
-                            Log.d("AssessmentHistory", "Assessment $id: type=$assessmentType, phq=$phqScore, gad=$gad7Score")
+                            Log.d("AssessmentHistory", "Assessment $id: rawType=$rawType, displayType=$displayType, phq=$phqScore, gad=$gad7Score")
 
                             result.add(
                                 AssessmentHistoryItem(
                                     id = id,
-                                    assessmentType = assessmentType,
+                                    assessmentType = displayType,
                                     phqScore = phqScore,
                                     gad7Score = gad7Score,
                                     phq8Score = null,
@@ -248,7 +248,8 @@ fun AssessmentHistoryScreen(
                                     aiPrediction = null,
                                     createdAt = createdAt,
                                     videoCount = videoCount,
-                                    files = null
+                                    files = null,
+                                    rawAssessmentType = rawType
                                 )
                             )
                         }
@@ -641,11 +642,26 @@ fun AssessmentHistoryCardLocal(
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Determine which score to use for severity
-    val score = assessment.phqScore ?: assessment.gad7Score ?: 0
-    val isDepression = assessment.assessmentType.contains("Depression", ignoreCase = true)
-    val isAnxiety = assessment.assessmentType.contains("Anxiety", ignoreCase = true)
+    // ✅ Determine the correct score and display label based on assessment type
+    val isDepression = assessment.assessmentType.contains("Depression", ignoreCase = true) ||
+            assessment.rawAssessmentType.equals("depression", ignoreCase = true)
+    val isAnxiety = assessment.assessmentType.contains("Anxiety", ignoreCase = true) ||
+            assessment.rawAssessmentType.equals("anxiety", ignoreCase = true)
 
+    // Use the appropriate score
+    val score = when {
+        isDepression -> assessment.phqScore ?: 0
+        isAnxiety -> assessment.gad7Score ?: 0
+        else -> assessment.phqScore ?: assessment.gad7Score ?: 0
+    }
+
+    val scoreLabel = when {
+        isDepression -> "PHQ-9"
+        isAnxiety -> "GAD-7"
+        else -> "Score"
+    }
+
+    // Determine severity based on the correct type and score
     val (severityText, severityColor, severityLightColor) = when {
         isDepression -> {
             when {
@@ -662,13 +678,6 @@ fun AssessmentHistoryCardLocal(
             }
         }
         else -> Triple("Unknown", LocalColorTextSecondary, LocalSoftPurpleBg)
-    }
-
-    // Determine the label (PHQ-9 or GAD-7)
-    val scoreLabel = when {
-        isDepression -> "PHQ-9"
-        isAnxiety -> "GAD-7"
-        else -> "Score"
     }
 
     Card(
@@ -717,7 +726,8 @@ fun AssessmentHistoryCardLocal(
                     Text("Assessment Details", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = LocalColorTextPrimary, modifier = Modifier.padding(bottom = 8.dp))
                     DetailRowLocal(label = "$scoreLabel Severity:", value = severityText, color = severityColor)
                     if (score > 0) {
-                        DetailRowLocal(label = "$scoreLabel Score:", value = "$score/${if (isDepression) 27 else 21}", color = severityColor)
+                        val maxScore = if (isDepression) 27 else if (isAnxiety) 21 else 0
+                        DetailRowLocal(label = "$scoreLabel Score:", value = "$score/$maxScore", color = severityColor)
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(

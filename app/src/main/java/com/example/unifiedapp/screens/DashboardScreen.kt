@@ -202,7 +202,7 @@ fun DashboardScreen(
     }
 }
 
-// ========== HOME TAB (FIXED BACKGROUND) ==========
+// ========== HOME TAB (unchanged) ==========
 @Composable
 fun UnifiedHomeContent(
     navController: NavController,
@@ -425,7 +425,7 @@ fun UnifiedHomeContent(
                         Text("Depression Assessment", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
                         Text("PHQ-9 questionnaire with AI facial analysis", style = MaterialTheme.typography.bodyMedium, color = Color(0xFF4B5563))
 
-                        // Depression trial display (already present)
+                        // Depression trial display
                         when {
                             isLoggedIn && !isLoadingTrials && depressionTrialsRemaining != null -> {
                                 Spacer(Modifier.height(12.dp))
@@ -472,7 +472,8 @@ fun UnifiedHomeContent(
         }
     }
 }
-// ========== WELLNESS TAB (FIXED BACKGROUND) ==========
+
+// ========== WELLNESS TAB (unchanged) ==========
 @Composable
 fun UnifiedWellnessContent(navController: NavController) {
     Column(
@@ -482,8 +483,6 @@ fun UnifiedWellnessContent(navController: NavController) {
             .padding(16.dp)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
-
-
     ) {
         Text("Wellness Tools", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, color = Color(0xFF1F2937))
 
@@ -564,7 +563,7 @@ fun UnifiedWellnessContent(navController: NavController) {
     }
 }
 
-// ========== PROFILE TAB ==========
+// ========== PROFILE TAB (UPDATED – added Assessment History card) ==========
 @Composable
 fun UnifiedProfileContent(
     navController: NavController,
@@ -677,7 +676,69 @@ fun UnifiedProfileContent(
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(24.dp))
+
+                // ✅ NEW: Assessment History Card
+                Spacer(modifier = Modifier.height(16.dp))
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { navController.navigate(Screen.ASSESSMENT_HISTORY) },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    Brush.linearGradient(
+                                        colors = listOf(
+                                            Color(0xFF8B5CF6),
+                                            Color(0xFFA78BFA)
+                                        )
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Outlined.History,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "Assessment History",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1F2937)
+                            )
+                            Text(
+                                "View your past assessments",
+                                fontSize = 13.sp,
+                                color = Color(0xFF6B7280)
+                            )
+                        }
+                        Icon(
+                            Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = Color(0xFF9CA3AF)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Logout Button
                 Button(
                     onClick = onLogout,
                     modifier = Modifier.fillMaxWidth().height(56.dp),
@@ -687,7 +748,7 @@ fun UnifiedProfileContent(
                     Text("Logout", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
             } else {
-                // Not logged in card
+                // Not logged in card (unchanged)
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(28.dp),
@@ -727,7 +788,7 @@ fun UnifiedProfileContent(
     }
 }
 
-// Helper function for info cards
+// ========== HELPER FUNCTIONS (unchanged) ==========
 @Composable
 fun ProfileInfoCardItem(
     icon: ImageVector,
