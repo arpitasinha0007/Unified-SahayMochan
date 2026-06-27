@@ -97,10 +97,13 @@ fun formatDate(dateString: String): String {
 suspend fun deleteSingleAssessment(assessmentId: Int): DeleteResult {
     return withContext(Dispatchers.IO) {
         try {
-            val url = java.net.URL("http://203.110.243.202:8000/api/student/assessment/$assessmentId")
+            // ✅ Correct endpoint (matches AuthApi)
+            val url = java.net.URL("http://203.110.243.202:8000/api/assessment/$assessmentId")
             val connection = url.openConnection() as java.net.HttpURLConnection
             connection.requestMethod = "DELETE"
             connection.setRequestProperty("Accept", "application/json")
+            // ✅ If the backend requires the registration ID, add it as a header or query param
+            // For now, we assume the backend identifies the user via session (not used yet)
             connection.connectTimeout = 10000
             connection.readTimeout = 10000
 
@@ -115,10 +118,17 @@ suspend fun deleteSingleAssessment(assessmentId: Int): DeleteResult {
             if (responseCode in 200..299) {
                 DeleteResult(true, "Assessment deleted")
             } else {
-                DeleteResult(false, "Failed to delete: $responseCode")
+                // Provide more descriptive error
+                val errorMsg = when (responseCode) {
+                    401 -> "Unauthorized. Please login again."
+                    403 -> "You don't have permission to delete this assessment."
+                    404 -> "Assessment not found."
+                    else -> "Failed to delete: $responseCode"
+                }
+                DeleteResult(false, errorMsg)
             }
         } catch (e: Exception) {
-            DeleteResult(false, "Error: ${e.message}")
+            DeleteResult(false, "Connection error: ${e.message}")
         }
     }
 }
