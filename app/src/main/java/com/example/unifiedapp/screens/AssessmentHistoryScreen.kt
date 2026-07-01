@@ -511,6 +511,7 @@ fun AssessmentHistoryHeaderLocal(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Back button
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -525,11 +526,13 @@ fun AssessmentHistoryHeaderLocal(
 
             Spacer(modifier = Modifier.width(16.dp))
 
+            // Title
             Column(modifier = Modifier.weight(1f)) {
                 Text("Assessment History", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = LocalColorTextPrimary)
                 Text(if (isLoggedIn) "View and manage your past assessments" else "Sign in to view your history", fontSize = 13.sp, color = LocalColorTextSecondary)
             }
 
+            // Delete All button (only if logged in and has assessments)
             if (isLoggedIn && hasAssessments) {
                 Box(
                     modifier = Modifier
@@ -544,6 +547,7 @@ fun AssessmentHistoryHeaderLocal(
                 }
             }
 
+            // ✅ Refresh button (functional) – only one
             if (isLoggedIn) {
                 Spacer(modifier = Modifier.width(8.dp))
                 Box(
@@ -559,20 +563,10 @@ fun AssessmentHistoryHeaderLocal(
                 }
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Brush.linearGradient(colors = listOf(LocalPurplePrimary, LocalPurpleSecondary))),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.History, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-            }
+            // ❌ Removed the rightmost History icon – it was non-functional and redundant
         }
     }
 }
-
 @Composable
 fun HistoryNotLoggedInContentLocal(onLoginClick: () -> Unit) {
     Column(
@@ -652,13 +646,13 @@ fun AssessmentHistoryCardLocal(
     onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // ✅ Determine the correct score and display label based on assessment type
+    // Determine the correct score and display label based on assessment type
     val isDepression = assessment.assessmentType.contains("Depression", ignoreCase = true) ||
             assessment.rawAssessmentType.equals("depression", ignoreCase = true)
     val isAnxiety = assessment.assessmentType.contains("Anxiety", ignoreCase = true) ||
             assessment.rawAssessmentType.equals("anxiety", ignoreCase = true)
 
-    // Use the appropriate score
+    // Use the appropriate score (only for severity determination)
     val score = when {
         isDepression -> assessment.phqScore ?: 0
         isAnxiety -> assessment.gad7Score ?: 0
@@ -735,10 +729,7 @@ fun AssessmentHistoryCardLocal(
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                     Text("Assessment Details", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = LocalColorTextPrimary, modifier = Modifier.padding(bottom = 8.dp))
                     DetailRowLocal(label = "$scoreLabel Severity:", value = severityText, color = severityColor)
-                    if (score > 0) {
-                        val maxScore = if (isDepression) 27 else if (isAnxiety) 21 else 0
-                        DetailRowLocal(label = "$scoreLabel Score:", value = "$score/$maxScore", color = severityColor)
-                    }
+                    // ❌ Score row removed – no numeric score displayed
                     Spacer(modifier = Modifier.height(12.dp))
                     Button(
                         onClick = onDeleteClick,
