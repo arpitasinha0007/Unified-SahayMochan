@@ -28,13 +28,10 @@ class VideoRecorderHelper(
     }
 
     fun initializeVideoCapture(): VideoCapture<Recorder> {
+        // ✅ Force SD (480p) quality to reduce file size for faster uploads on slow networks
+        // AI facial analysis works reliably at 480p – MediaPipe and TFLite downsample internally.
         val recorder = Recorder.Builder()
-            .setQualitySelector(
-                QualitySelector.fromOrderedList(
-                    listOf(Quality.HD, Quality.SD, Quality.LOWEST),
-                    FallbackStrategy.higherQualityOrLowerThan(Quality.SD)
-                )
-            )
+            .setQualitySelector(QualitySelector.from(Quality.SD))
             .build()
 
         videoCapture = VideoCapture.withOutput(recorder)
